@@ -1,0 +1,3 @@
+[submodule "Dota2Dispenser.Shared"]
+	path = Dota2Dispenser.Shared
+	url = https://github.com/Urantij/Dota2Dispenser.Shared.git
