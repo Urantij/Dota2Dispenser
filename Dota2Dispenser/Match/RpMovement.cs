@@ -42,6 +42,8 @@ public class RpMovement
         _lifetime = lifetime;
         _logger = logger;
         updateDelayTime = options.Value.UpdaterUpdateDelayTime;
+
+        steam.DotaPersonaReceived += DotaPersonaReceived;
     }
 
     public void Init()
@@ -53,6 +55,27 @@ public class RpMovement
         isRunning = true;
 
         Task.Run(LoopAsync);
+    }
+
+    private void DotaPersonaReceived(SteamDota.DotaPersonaStateCallback obj)
+    {
+        ulong targetId = obj.friendId.ConvertToUInt64();
+
+        AccountModel? account = _targetsContainer.FindAccount(targetId);
+        if (account == null)
+            return;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await ProcessRichPresenceAsync(account, obj.richPresence);
+            }
+            catch (Exception e)
+            {
+                _logger.LogCritical(e, $"{nameof(DotaPersonaReceived)}.{nameof(ProcessRichPresenceAsync)} Exception");
+            }
+        });
     }
 
     private async Task LoopAsync()
