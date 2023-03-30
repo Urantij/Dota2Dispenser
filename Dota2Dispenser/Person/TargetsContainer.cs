@@ -103,4 +103,12 @@ public class TargetsContainer
             return targets.ToArray();
         }
     }
+
+    public AccountModel? FindAccount(ulong targetId)
+    {
+        lock (locker)
+        {
+            return targets.FirstOrDefault(t => t.SteamID == targetId);
+        }
+    }
 }
