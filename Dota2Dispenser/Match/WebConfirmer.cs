@@ -27,7 +27,6 @@ public class WebConfirmer
     /// <summary>
     /// Как долго может барахтаться игра, прежде чем её назовут брокен и выкинут.
     /// </summary>
-    readonly TimeSpan timeToConfirmBroken;
     readonly TimeSpan updateDelayTime;
     bool isRunning = false;
 
@@ -39,7 +38,6 @@ public class WebConfirmer
         this._lifetime = lifetime;
         this._logger = logger;
         this.updateDelayTime = options.Value.WebConfirmerUpdateDelayTime;
-        this.timeToConfirmBroken = options.Value.TimeToConfirmBroken;
     }
 
     public void Init()
@@ -136,11 +134,7 @@ public class WebConfirmer
     async Task CheckMatchAsync(TrackedMatch tracked)
     {
         if (tracked.match.TvInfo == null)
-        {
-            // TODO подумать.
-            await CheckIfBrokenAsync(tracked);
             return;
-        }
 
         DotaApi.MatchDetails details;
         try
@@ -155,7 +149,6 @@ public class WebConfirmer
         catch (Exception e)
         {
             _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetails)} Exception");
-            await CheckIfBrokenAsync(tracked);
             return;
         }
 
@@ -174,8 +167,6 @@ public class WebConfirmer
             {
                 _logger.LogDebug("Проверили {matchId}, всё ещё идёт ({note})", tracked.match.TvInfo.MatchId, tracked.CreateNote());
             }
-
-            await CheckIfBrokenAsync(tracked);
             return;
         }
 
@@ -183,11 +174,10 @@ public class WebConfirmer
         if (details.players == null)
         {
             _logger.LogCritical($"{nameof(details.players)} is null");
-
-            await CheckIfBrokenAsync(tracked);
             return;
-
         }
+
+        _matchTracker.RemoveDeadMatch(tracked);
 
         await _databaser.UpdateMatchAsync(tracked.match, () =>
         {
@@ -206,8 +196,6 @@ public class WebConfirmer
             }
         });
 
-        _matchTracker.RemoveDeadMatch(tracked);
-
         if (!tracked.gotAllHeroes)
         {
             _logger.LogDebug("Добили героев.");
@@ -216,20 +204,10 @@ public class WebConfirmer
         _logger.LogInformation("Закрыли {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
     }
 
-    async Task CheckIfBrokenAsync(TrackedMatch tracked)
-    {
-        TimeSpan passed = DateTime.UtcNow - tracked.match.GameDate;
-        if (passed < timeToConfirmBroken)
-            return;
-
-        // Прошло много времени, пора прощаться.
-        await RemoveMatchAsync(tracked, "timeout");
-    }
-
     async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
     {
-        await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
         _matchTracker.RemoveDeadMatch(tracked);
+        await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
 
         _logger.LogInformation("Сломался {matchId} ({note}) {reason}", tracked.match.Id, tracked.CreateNote(), reason);
     }

@@ -50,6 +50,7 @@ public class Program
         builder.Services.AddSingleton<Databaser>();
         builder.Services.AddSingleton<TargetsContainer>();
         builder.Services.AddSingleton<MatchTracker>();
+        builder.Services.AddSingleton<AgeRestricter>();
         builder.Services.AddSingleton<WebConfirmer>();
         builder.Services.AddSingleton<RpMovement>();
         builder.Services.AddSingleton<SourceTvMovement>();
@@ -72,6 +73,7 @@ public class Program
         await app.Services.GetRequiredService<Databaser>().InitAsync();
         await app.Services.GetRequiredService<TargetsContainer>().InitAsync();
         await app.Services.GetRequiredService<MatchTracker>().InitAsync();
+        app.Services.GetRequiredService<AgeRestricter>().Init();
         app.Services.GetRequiredService<WebConfirmer>().Init();
         app.Services.GetRequiredService<RpMovement>().Init();
         app.Services.GetRequiredService<SourceTvMovement>().Init();
