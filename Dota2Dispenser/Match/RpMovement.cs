@@ -41,7 +41,7 @@ public class RpMovement
         _databaser = databaser;
         _lifetime = lifetime;
         _logger = logger;
-        updateDelayTime = options.Value.UpdaterUpdateDelayTime;
+        updateDelayTime = options.Value.RpUpdateDelayTime;
 
         steam.DotaPersonaReceived += DotaPersonaReceived;
     }

@@ -31,7 +31,7 @@ public class SourceTvMovement
         _lifetime = lifetime;
         _logger = logger;
 
-        updateDelayTime = options.Value.UpdaterUpdateDelayTime;
+        updateDelayTime = options.Value.SourceTvUpdateDelayTime;
     }
 
     public void Init()
