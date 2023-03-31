@@ -19,6 +19,7 @@ public class AppOptions
     public TimeSpan TimeToConfirmBroken { get; set; } = TimeSpan.FromHours(2);
 
     public TimeSpan UpdaterUpdateDelayTime { get; set; } = TimeSpan.FromSeconds(30);
+    public TimeSpan AgeRestricterCheckDelay { get; set; } = TimeSpan.FromMinutes(1);
 
     [Required]
     public required string SteamUsername { get; set; }
