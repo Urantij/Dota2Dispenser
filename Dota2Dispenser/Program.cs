@@ -67,6 +67,12 @@ public class Program
             config.CreateMap<Database.Models.MatchModel, Shared.Models.MatchModel>();
         });
 
+        builder.Services.Configure<Microsoft.AspNetCore.Http.Json.JsonOptions>(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = null;
+            options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        });
+
         var app = builder.Build();
 
         app.Services.GetRequiredService<DotaApiService>();
