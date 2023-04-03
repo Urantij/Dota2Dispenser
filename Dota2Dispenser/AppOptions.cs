@@ -26,4 +26,6 @@ public class AppOptions
     public required string SteamUsername { get; set; }
     [Required]
     public required string SteamPassword { get; set; }
+
+    public bool? DontStartSteamClient { get; set; }
 }

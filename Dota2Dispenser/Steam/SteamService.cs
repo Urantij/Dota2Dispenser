@@ -24,6 +24,7 @@ public class SteamService
     readonly string username, password;
 
     readonly TimeSpan reconnectTime = TimeSpan.FromSeconds(10);
+    readonly bool dontStart;
 
     bool isRunning = false;
     /// <summary>
@@ -42,6 +43,7 @@ public class SteamService
 
         username = options.Value.SteamUsername;
         password = options.Value.SteamPassword;
+        dontStart = options.Value.DontStartSteamClient == true;
 
         client = new SteamClient();
         callbackManager = new CallbackManager(client);
@@ -74,7 +76,7 @@ public class SteamService
 
     public void Init()
     {
-        if (isRunning)
+        if (isRunning || dontStart)
             return;
 
         isRunning = true;
