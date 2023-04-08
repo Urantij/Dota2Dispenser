@@ -29,7 +29,7 @@ public static class AccountRoutes
 
     public static async Task<IResult> PostAsync(HttpContext context, TargetsContainer targetsContainer)
     {
-        string? identity = context.Request.Headers.Authorization.FirstOrDefault();
+        string? identity = context.Request.Headers[Shared.Consts.Dota2DispenserParams.idHeader].FirstOrDefault();
         if (identity == null)
             return TypedResults.BadRequest();
 
