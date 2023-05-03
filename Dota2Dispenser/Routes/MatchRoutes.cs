@@ -12,12 +12,15 @@ namespace Dota2Dispenser.Routes;
 
 public static class MatchRoutes
 {
+    const int maximumLimit = 20;
+
     public static async Task<IResult> GetAsync(HttpContext httpContext, DotaContext dbContext, IMapper mapper)
     {
         int? dispenserMatchIdParam = httpContext.Request.Query.GetInt(Dota2DispenserParams.dispenserMatchIdFilter);
         ulong? matchIdParam = httpContext.Request.Query.GetUlong(Dota2DispenserParams.matchIdFilter);
         ulong? steamIdParam = httpContext.Request.Query.GetUlong(Dota2DispenserParams.steamIdFilter);
         DateTime? datetimeParam = httpContext.Request.Query.GetDateTime(Dota2DispenserParams.afterDateTimeFilter)?.UtcDateTime;
+        int? limit = httpContext.Request.Query.GetInt(Dota2DispenserParams.limitFilter);
 
         var filterQuery = dbContext.Matches.AsQueryable();
 
@@ -37,9 +40,15 @@ public static class MatchRoutes
         {
             filterQuery = filterQuery.Where(m => m.GameDate > datetimeParam);
         }
+        if (limit == null)
+            limit = maximumLimit;
+        else if (limit > maximumLimit)
+            limit = maximumLimit;
+        else if (limit <= 0)
+            limit = 1;
 
         var result = await filterQuery
-        .Take(20)
+        .Take(limit.Value)
         .OrderByDescending(m => m.Id)
         .ProjectTo<Shared.Models.MatchModel>(mapper.ConfigurationProvider)
         .ToArrayAsync();
