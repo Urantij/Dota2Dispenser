@@ -120,9 +120,7 @@ public class SourceTvMovement
 
                     PlayerModel player = new(tracked.match.Id, steamId.ConvertToUInt64(), sourcePlayer.hero_id);
 
-                    int partyIndex = tracked.parties.FindIndex(p => p.Contains(player.SteamId));
-                    if (partyIndex != -1)
-                        player.PartyIndex = partyIndex;
+                    player.PartyIndex = tracked.parties.FindIndex(p => p.Contains(player.SteamId));
 
                     return player;
                 }).ToArray();

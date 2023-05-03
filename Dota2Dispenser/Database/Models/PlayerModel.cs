@@ -34,6 +34,9 @@ public class PlayerModel
     /// </summary>
     public int? LeaverStatus { get; set; }
 
+    /// <summary>
+    /// Если пати не было, значение будет -1.
+    /// </summary>
     public int? PartyIndex { get; set; }
 
     public PlayerModel() { }
