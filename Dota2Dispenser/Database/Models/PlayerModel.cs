@@ -40,6 +40,11 @@ public class PlayerModel
     /// </summary>
     public int? PartyIndex { get; set; }
 
+    /// <summary>
+    /// Становится доступен, когда игра успешно завершается.
+    /// </summary>
+    public int? PlayerSlot { get; set; }
+
     public PlayerModel() { }
     public PlayerModel(int matchId, ulong steamId, uint heroId)
     {

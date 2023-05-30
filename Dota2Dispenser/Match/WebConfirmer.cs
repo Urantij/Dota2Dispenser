@@ -187,14 +187,20 @@ public class WebConfirmer
 
             if (tracked.match.Players?.Count == details.players.Length)
             {
-                for (int i = 0; i < tracked.match.Players!.Count; i++)
+                foreach (var player in tracked.match.Players)
                 {
-                    Database.Models.PlayerModel player = tracked.match.Players.ElementAt(i);
-                    DotaApi.MatchDetails.Player detailed = details.players[i];
+                    var detailed = details.players.FirstOrDefault(p => new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64() == player.SteamId);
+
+                    if (detailed == null)
+                    {
+                        _logger.LogError("Не удалось найти детали для {id}", player.Id);
+                        continue;
+                    }
 
                     if (player.HeroId == 0)
                         player.HeroId = detailed.hero_id;
                     player.LeaverStatus = detailed.leaver_status;
+                    player.PlayerSlot = detailed.player_slot;
                 }
             }
             else
