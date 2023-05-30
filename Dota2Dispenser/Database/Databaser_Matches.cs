@@ -15,6 +15,7 @@ public partial class Databaser
         using var context = await _contextFactory.CreateDbContextAsync();
 
         return await context.Matches
+        .OrderBy(g => g.Id)
         .Where(g => g.MatchResult == MatchResult.None)
         .Include(p => p.Players)
         .ToArrayAsync();

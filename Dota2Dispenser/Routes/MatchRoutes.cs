@@ -48,8 +48,8 @@ public static class MatchRoutes
             limit = 1;
 
         var result = await filterQuery
-        .Take(limit.Value)
         .OrderByDescending(m => m.Id)
+        .Take(limit.Value)
         .ProjectTo<Shared.Models.MatchModel>(mapper.ConfigurationProvider)
         .ToArrayAsync();
 
