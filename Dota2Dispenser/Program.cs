@@ -3,6 +3,7 @@ using Dota2Dispenser.Database;
 using Dota2Dispenser.Match;
 using Dota2Dispenser.Person;
 using Dota2Dispenser.Routes;
+using Dota2Dispenser.Shared.Consts;
 using Dota2Dispenser.Steam;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -113,10 +114,10 @@ public class Program
 
         app.MapGet("/jokerge", () => "Hello World!");
 
-        app.MapDelete("/account/{id:ulong}", AccountRoutes.DeleteAsync);
-        app.MapPost("/account", AccountRoutes.PostAsync);
+        app.MapDelete($"/{Dota2DispenserPoints.accounts}/{{id:ulong}}", AccountRoutes.DeleteAsync);
+        app.MapPost($"/{Dota2DispenserPoints.accounts}", AccountRoutes.PostAsync);
 
-        app.MapGet("/match", MatchRoutes.GetAsync);
+        app.MapGet($"/{Dota2DispenserPoints.matches}", MatchRoutes.GetAsync);
 
         await app.RunAsync();
     }
