@@ -71,6 +71,10 @@ public class MatchTracker
         }
     }
 
+    /// <summary>
+    /// Матчи, в которых нет <see cref="MatchModel.TvInfo"/> или <see cref="TrackedMatch.gotAllHeroes"/> false
+    /// </summary>
+    /// <returns></returns>
     public TrackedMatch[] GetLiveMatchesForSourceTv()
     {
         lock (liveMatches)

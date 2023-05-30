@@ -114,18 +114,22 @@ public class SourceTvMovement
                 //tracked.match.GameDate = source.ShouldSerializeactivate_time() ? DateTimeOffset.FromUnixTimeSeconds(source.activate_time).UtcDateTime : DateTime.UtcNow - TimeSpan.FromSeconds(source.game_time);
                 //в итоге оказалось, активейт тайм вообще непонятно что за хуйню выдаёт, там иногда буквально дата в будущем
                 // tracked.match.GameDate = DateTime.UtcNow;
-                tracked.match.Players = source.players.Select(sourcePlayer =>
+
+                if (source.players.Count == 10)
                 {
-                    SteamID steamId = new(sourcePlayer.account_id, EUniverse.Public, EAccountType.Individual);
-
-                    PlayerModel player = new(tracked.match.Id, steamId.ConvertToUInt64(), sourcePlayer.hero_id);
-
-                    player.PartyIndex = tracked.parties.FindIndex(p => p.Contains(player.SteamId));
-
-                    return player;
-                }).ToArray();
+                    AttachPlayers(tracked, source);
+                }
             });
-            tracked.gotAllHeroes = tracked.match.Players!.All(p => p.HeroId != 0);
+
+            if (tracked.match.Players?.Count == 10)
+                tracked.gotAllHeroes = tracked.match.Players!.All(p => p.HeroId != 0);
+        }
+        else if (tracked.match.Players == null)
+        {
+            if (source.players.Count == 10)
+            {
+                AttachPlayers(tracked, source);
+            }
         }
         else if (!tracked.gotAllHeroes)
         {
@@ -145,5 +149,19 @@ public class SourceTvMovement
                 _logger.LogInformation("Получили всех героев {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
             }
         }
+    }
+
+    static void AttachPlayers(TrackedMatch tracked, SteamKit2.GC.Dota.Internal.CSourceTVGameSmall source)
+    {
+        tracked.match.Players = source.players.Select(sourcePlayer =>
+        {
+            SteamID steamId = new(sourcePlayer.account_id, EUniverse.Public, EAccountType.Individual);
+
+            PlayerModel player = new(tracked.match.Id, steamId.ConvertToUInt64(), sourcePlayer.hero_id);
+
+            player.PartyIndex = tracked.parties.FindIndex(p => p.Contains(player.SteamId));
+
+            return player;
+        }).ToArray();
     }
 }

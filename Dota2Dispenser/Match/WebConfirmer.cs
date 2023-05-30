@@ -185,14 +185,28 @@ public class WebConfirmer
             tracked.match.MatchResult = MatchResult.Finished;
             tracked.match.DetailsInfo = new Database.Models.DetailsMatchInfo(details.radiant_win, TimeSpan.FromSeconds(details.duration));
 
-            for (int i = 0; i < tracked.match.Players!.Count; i++)
+            if (tracked.match.Players?.Count == details.players.Length)
             {
-                Database.Models.PlayerModel player = tracked.match.Players.ElementAt(i);
-                DotaApi.MatchDetails.Player detailed = details.players[i];
+                for (int i = 0; i < tracked.match.Players!.Count; i++)
+                {
+                    Database.Models.PlayerModel player = tracked.match.Players.ElementAt(i);
+                    DotaApi.MatchDetails.Player detailed = details.players[i];
 
-                if (player.HeroId == 0)
-                    player.HeroId = detailed.hero_id;
-                player.LeaverStatus = detailed.leaver_status;
+                    if (player.HeroId == 0)
+                        player.HeroId = detailed.hero_id;
+                    player.LeaverStatus = detailed.leaver_status;
+                }
+            }
+            else
+            {
+                tracked.match.Players = details.players.Select(p => new Database.Models.PlayerModel()
+                {
+                    Match = tracked.match,
+                    PartyIndex = -2,
+                    LeaverStatus = p.leaver_status,
+                    HeroId = p.hero_id,
+                    SteamId = new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64()
+                }).ToArray();
             }
         });
 

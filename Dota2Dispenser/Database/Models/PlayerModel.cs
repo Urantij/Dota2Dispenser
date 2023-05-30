@@ -36,6 +36,7 @@ public class PlayerModel
 
     /// <summary>
     /// Если пати не было, значение будет -1.
+    /// Если инфа появилась слишком поздно, -2. (Не было шанса узнать)
     /// </summary>
     public int? PartyIndex { get; set; }
 
