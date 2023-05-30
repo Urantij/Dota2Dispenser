@@ -18,6 +18,13 @@ public class Program
             File.WriteAllText($"CRASH {DateTime.Now:yyyy.MM.dd HH:mm:ss}.txt", ex.ExceptionObject.ToString());
         };
 
+        TaskScheduler.UnobservedTaskException += (sender, ex) =>
+        {
+            System.Console.WriteLine($"UnobservedTaskException {sender?.GetType().Name ?? "Null"}");
+
+            File.WriteAllLines($"UnobservedTaskException {DateTime.Now:yyyy.MM.dd HH:mm:ss}.txt", new[] { sender?.GetType().Name ?? "Null", ex.ToString() ?? "No string" });
+        };
+
         var builder = WebApplication.CreateBuilder(appArgs);
         builder.Logging.ClearProviders();
         builder.Services.AddLogging(b =>
