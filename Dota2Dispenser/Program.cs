@@ -82,6 +82,16 @@ public class Program
 
         var app = builder.Build();
 
+        using (var scope = app.Services.CreateScope())
+        {
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            var options = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<AppOptions>>();
+
+            logger.LogInformation("Задержка обновлений {time}", options.Value.RpUpdateDelayTime);
+
+            logger.LogDebug("Дыбажим.");
+        }
+
         app.Services.GetRequiredService<DotaApiService>();
         await app.Services.GetRequiredService<Databaser>().InitAsync();
         await app.Services.GetRequiredService<TargetsContainer>().InitAsync();
