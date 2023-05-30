@@ -205,8 +205,9 @@ public class RpMovement
                 {
                     currentMatch.AddPlayer(target);
                     UpdateParties(currentMatch, target.SteamID, rpInfo.party_Members);
-                    await UpdateMatchRpStatusAsync(currentMatch, rpInfo, true);
                 }
+
+                await UpdateMatchRpStatusAsync(currentMatch, rpInfo, true);
             }
             else
             {
@@ -218,8 +219,9 @@ public class RpMovement
                     {
                         currentMatch.AddPlayer(target);
                         UpdateParties(currentMatch, target.SteamID, rpInfo.party_Members);
-                        await UpdateMatchRpStatusAsync(currentMatch, rpInfo, true);
                     }
+
+                    await UpdateMatchRpStatusAsync(currentMatch, rpInfo, true);
 
                     _matchTracker.ResurrectMatch(currentMatch);
                 }
@@ -277,6 +279,7 @@ public class RpMovement
         // Поэтому обновления статуса уже найденного матча должно не работать никогда.
         // Не знаю, зачем я это добавил.
         // TODO xdd?
+        // Имортал драфт не парсится, приходит нулл.
         if (tracked.match.RichPresenceLobbyType != null)
             return Task.CompletedTask;
 
