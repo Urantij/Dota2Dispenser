@@ -14,6 +14,21 @@ using SteamKitDota2.More;
 
 namespace Dota2Dispenser.Match;
 
+// Мы не хотим влиять на систему одновременно с одного матча или с одного аккаунта.
+class SynchroRp
+{
+    public readonly AccountModel account;
+    public readonly ulong? watchableGameId;
+    public readonly TaskCompletionSource tsc;
+
+    public SynchroRp(AccountModel account, ulong? watchableGameId, TaskCompletionSource tsc)
+    {
+        this.account = account;
+        this.watchableGameId = watchableGameId;
+        this.tsc = tsc;
+    }
+}
+
 /// <summary>
 /// Опрашивает цели через RichPresence
 /// </summary>
@@ -28,6 +43,8 @@ public class RpMovement
     private readonly Databaser _databaser;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<RpMovement> _logger;
+
+    private readonly List<SynchroRp> processingAccounts = new();
 
     private readonly TimeSpan updateDelayTime;
 
@@ -69,13 +86,42 @@ public class RpMovement
         {
             try
             {
-                await ProcessRichPresenceAsync(account, obj.richPresence);
+                await ExecuteRpProcessingAsync(account, obj.richPresence);
             }
             catch (Exception e)
             {
-                _logger.LogCritical(e, $"{nameof(DotaPersonaReceived)}.{nameof(ProcessRichPresenceAsync)} Exception");
+                _logger.LogCritical(e, $"{nameof(DotaPersonaReceived)}.{nameof(ExecuteRpProcessingAsync)} Exception");
             }
         });
+    }
+
+    async Task ExecuteRpProcessingAsync(AccountModel target, DotaRichPresenceInfo? rpInfo)
+    {
+        TaskCompletionSource tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var help = new SynchroRp(target, rpInfo?.watchableGameId, tcs);
+
+        Task[] existingTasks;
+        lock (processingAccounts)
+        {
+            existingTasks = processingAccounts.Where(pa => pa.account == help.account || pa.watchableGameId == help.watchableGameId).Select(pa => pa.tsc.Task).ToArray();
+
+            processingAccounts.Add(help);
+        }
+
+        await Task.WhenAll(existingTasks);
+
+        try
+        {
+            await ProcessRichPresenceAsync(target, rpInfo);
+        }
+        finally
+        {
+            tcs.SetResult();
+            lock (processingAccounts)
+            {
+                processingAccounts.Remove(help);
+            }
+        }
     }
 
     private async Task LoopAsync()
@@ -114,7 +160,7 @@ public class RpMovement
                     .Select(rp => rp.rich_presence_kv.Length > 0 ? new DotaRichPresenceInfo(rp.rich_presence_kv) : null)
                     .FirstOrDefault(); // Single?
 
-                    await ProcessRichPresenceAsync(target, rpInfo);
+                    await ExecuteRpProcessingAsync(target, rpInfo);
                 }
             }
             catch (Exception e)
