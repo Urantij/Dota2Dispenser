@@ -7,11 +7,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="2.4.1" />
-    <PackageReference Include="SteamKitDota2" Version="1.2.3" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.4" />
+    <PackageReference Include="SteamKitDota2" Version="1.2.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="7.0.5" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="7.0.5" />
     <PackageReference Include="AutoMapper" Version="12.0.1" />
-    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.0" />
+    <PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Dota2Dispenser.Shared\Dota2Dispenser.Shared.csproj" />
