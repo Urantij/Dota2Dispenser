@@ -22,6 +22,10 @@ public class PlayerModel
     public int MatchId { get; set; }
     public MatchModel Match { get; set; }
 
+    /// <summary>
+    /// 64<br/>
+    /// Если нет айди, значение будет 76561202255233023 или может быть 76561202255233022, я не уверен. Но вроде бы первое.
+    /// </summary>
     [Required]
     public ulong SteamId { get; set; }
     /// <summary>
@@ -42,8 +46,21 @@ public class PlayerModel
 
     /// <summary>
     /// Становится доступен, когда игра успешно завершается.
+    /// Это не номер слота игрока в команде, это структура, которая должна парситься.
     /// </summary>
     public int? PlayerSlot { get; set; }
+
+    /// <summary>
+    /// Становится доступен, когда игра успешно завершается.
+    /// По моим наблюдениям, 0 - редиант.
+    /// </summary>
+    public int? TeamNumber { get; set; }
+
+    /// <summary>
+    /// Становится доступен, когда игра успешно завершается.
+    /// 0-4
+    /// </summary>
+    public int? TeamSlot { get; set; }
 
     public PlayerModel() { }
     public PlayerModel(int matchId, ulong steamId, uint heroId)

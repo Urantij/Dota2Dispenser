@@ -139,16 +139,16 @@ public class WebConfirmer
         DotaApi.MatchDetails details;
         try
         {
-            details = await _dotaApi.api.GetMatchDetails(tracked.match.TvInfo.MatchId);
+            details = await _dotaApi.api.GetMatchDetailsAsync(tracked.match.TvInfo.MatchId);
         }
         catch (WebAPIRequestException webEx) when (webEx.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
         {
-            _logger.LogWarning($"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetails)} ServiceUnavailable");
+            _logger.LogWarning($"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetailsAsync)} ServiceUnavailable");
             return;
         }
         catch (Exception e)
         {
-            _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetails)} Exception");
+            _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetailsAsync)} Exception");
             return;
         }
 
@@ -189,11 +189,24 @@ public class WebConfirmer
             {
                 foreach (var player in tracked.match.Players)
                 {
-                    var detailed = details.players.FirstOrDefault(p => new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64() == player.SteamId);
+                    DotaApi.MatchDetails.Player? detailed = details.players
+                    .Where(p => p.account_id != 4294967295)
+                    .FirstOrDefault(p => new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64() == player.SteamId);
 
                     if (detailed == null)
                     {
-                        _logger.LogError("Не удалось найти детали для {id}", player.Id);
+                        // Такое может быть, если человечек скрыл профиль. Увы.
+
+                        if (player.HeroId != 0)
+                        {
+                            // Почти всегда герой будет, так что используем.
+                            detailed = details.players.FirstOrDefault(p => p.hero_id == player.HeroId);
+                        }
+                    }
+
+                    if (detailed == null)
+                    {
+                        _logger.LogWarning("Не удалось найти детали для {id}", player.Id);
                         continue;
                     }
 
@@ -201,17 +214,24 @@ public class WebConfirmer
                         player.HeroId = detailed.hero_id;
                     player.LeaverStatus = detailed.leaver_status;
                     player.PlayerSlot = detailed.player_slot;
+                    player.TeamNumber = detailed.team_number;
+                    player.TeamSlot = detailed.team_slot;
                 }
             }
             else
             {
+                // Чтобы это случилось, бот должен быть выключен до того, как пройдёт пара минут с начала матча.
+                // Маловероятно, всё равно.
                 tracked.match.Players = details.players.Select(p => new Database.Models.PlayerModel()
                 {
                     Match = tracked.match,
                     PartyIndex = -2,
                     LeaverStatus = p.leaver_status,
                     HeroId = p.hero_id,
-                    SteamId = new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64()
+                    SteamId = new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64(),
+                    PlayerSlot = p.player_slot,
+                    TeamNumber = p.team_number,
+                    TeamSlot = p.team_slot
                 }).ToArray();
             }
         });
