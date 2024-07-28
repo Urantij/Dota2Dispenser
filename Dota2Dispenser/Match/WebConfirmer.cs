@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Dota2Dispenser;
 using Dota2Dispenser.Database;
+using Dota2Dispenser.NoSteam;
 using Dota2Dispenser.Shared.Consts;
 using Dota2Dispenser.Steam;
 using Microsoft.Extensions.Options;
@@ -18,7 +19,7 @@ namespace Dota2Dispenser.Match;
 /// </summary>
 public class WebConfirmer
 {
-    private readonly DotaApiService _dotaApi;
+    private readonly OpenDotaService _openDota;
     private readonly MatchTracker _matchTracker;
     private readonly Databaser _databaser;
     private readonly IHostApplicationLifetime _lifetime;
@@ -28,11 +29,13 @@ public class WebConfirmer
     /// Как долго может барахтаться игра, прежде чем её назовут брокен и выкинут.
     /// </summary>
     readonly TimeSpan updateDelayTime;
+
     bool isRunning = false;
 
-    public WebConfirmer(DotaApiService dotaApi, MatchTracker matchTracker, Databaser databaser, IHostApplicationLifetime lifetime, ILogger<WebConfirmer> logger, IOptions<AppOptions> options)
+    public WebConfirmer(OpenDotaService openDota, MatchTracker matchTracker, Databaser databaser,
+        IHostApplicationLifetime lifetime, ILogger<WebConfirmer> logger, IOptions<AppOptions> options)
     {
-        this._dotaApi = dotaApi;
+        this._openDota = openDota;
         this._matchTracker = matchTracker;
         this._databaser = databaser;
         this._lifetime = lifetime;
@@ -136,44 +139,19 @@ public class WebConfirmer
         if (tracked.match.TvInfo == null)
             return;
 
-        DotaApi.MatchDetails details;
+        OpenMatch openMatch;
         try
         {
-            details = await _dotaApi.api.GetMatchDetailsAsync(tracked.match.TvInfo.MatchId);
+            openMatch = await _openDota.DoAsync(tracked.match.TvInfo.MatchId, _lifetime.ApplicationStopping);
         }
-        catch (WebAPIRequestException webEx) when (webEx.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+        catch (MatchNotFoundException)
         {
-            _logger.LogWarning($"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetailsAsync)} ServiceUnavailable");
+            _logger.LogWarning("Матч не найден {id}", tracked.match.TvInfo.MatchId);
             return;
         }
         catch (Exception e)
         {
-            _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_dotaApi.api.GetMatchDetailsAsync)} Exception");
-            return;
-        }
-
-        if (details.error != null)
-        {
-            if (details.error == DotaApi.MatchDetails.PracticeNotAvailableError)
-            {
-                await RemoveMatchAsync(tracked, "practice match");
-                return;
-            }
-            else if (details.error != DotaApi.MatchDetails.MatchNotFoundError)
-            {
-                _logger.LogError($"{nameof(CheckMatchAsync)} Details error {{error}}", details.error);
-            }
-            else
-            {
-                _logger.LogDebug("Проверили {matchId}, всё ещё идёт ({note})", tracked.match.TvInfo.MatchId, tracked.CreateNote());
-            }
-            return;
-        }
-
-        // Я не уверен, возможно ли это.
-        if (details.players == null)
-        {
-            _logger.LogCritical($"{nameof(details.players)} is null");
+            _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_openDota.DoAsync)} Exception");
             return;
         }
 
@@ -181,17 +159,20 @@ public class WebConfirmer
 
         await _databaser.UpdateMatchAsync(tracked.match, () =>
         {
-            tracked.match.GameDate = DateTimeOffset.FromUnixTimeSeconds(details.start_time).UtcDateTime;
+            tracked.match.GameDate = DateTimeOffset.FromUnixTimeSeconds(openMatch.StartTime).UtcDateTime;
             tracked.match.MatchResult = MatchResult.Finished;
-            tracked.match.DetailsInfo = new Database.Models.DetailsMatchInfo(details.radiant_win, TimeSpan.FromSeconds(details.duration));
+            tracked.match.DetailsInfo =
+                new Database.Models.DetailsMatchInfo(openMatch.RadiantWin, TimeSpan.FromSeconds(openMatch.Duration));
 
-            if (tracked.match.Players?.Count == details.players.Length)
+            if (tracked.match.Players?.Count == openMatch.Players.Length)
             {
                 foreach (var player in tracked.match.Players)
                 {
-                    DotaApi.MatchDetails.Player? detailed = details.players
-                    .Where(p => p.account_id != 4294967295)
-                    .FirstOrDefault(p => new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64() == player.SteamId);
+                    OpenPlayer? detailed = openMatch.Players
+                        .Where(p => p.AccountId != null && p.AccountId != 4294967295)
+                        .FirstOrDefault(p =>
+                            new SteamID((uint)p.AccountId!.Value, EUniverse.Public, EAccountType.Individual)
+                                .ConvertToUInt64() == player.SteamId);
 
                     if (detailed == null)
                     {
@@ -200,7 +181,7 @@ public class WebConfirmer
                         if (player.HeroId != 0)
                         {
                             // Почти всегда герой будет, так что используем.
-                            detailed = details.players.FirstOrDefault(p => p.hero_id == player.HeroId);
+                            detailed = openMatch.Players.FirstOrDefault(p => p.HeroId == player.HeroId);
                         }
                     }
 
@@ -211,27 +192,38 @@ public class WebConfirmer
                     }
 
                     if (player.HeroId == 0)
-                        player.HeroId = detailed.hero_id;
-                    player.LeaverStatus = detailed.leaver_status;
-                    player.PlayerSlot = detailed.player_slot;
-                    player.TeamNumber = detailed.team_number;
-                    player.TeamSlot = detailed.team_slot;
+                        player.HeroId = detailed.HeroId;
+                    player.LeaverStatus = detailed.LeaverStatus;
+                    player.PlayerSlot = detailed.PlayerSlot;
+                    player.TeamNumber = detailed.IsRadiant switch
+                    {
+                        true => 0,
+                        false => 1,
+                        null => 3
+                    };
+                    player.TeamSlot = Array.IndexOf(openMatch.Players, detailed) -
+                                      (detailed.IsRadiant == false ? 5 : 0);
                 }
             }
             else
             {
                 // Чтобы это случилось, бот должен быть выключен до того, как пройдёт пара минут с начала матча.
                 // Маловероятно, всё равно.
-                tracked.match.Players = details.players.Select(p => new Database.Models.PlayerModel()
+                tracked.match.Players = openMatch.Players.Select(p => new Database.Models.PlayerModel()
                 {
                     Match = tracked.match,
                     PartyIndex = -2,
-                    LeaverStatus = p.leaver_status,
-                    HeroId = p.hero_id,
-                    SteamId = new SteamID(p.account_id, EUniverse.Public, EAccountType.Individual).ConvertToUInt64(),
-                    PlayerSlot = p.player_slot,
-                    TeamNumber = p.team_number,
-                    TeamSlot = p.team_slot
+                    LeaverStatus = p.LeaverStatus,
+                    HeroId = p.HeroId,
+                    SteamId = new SteamID(HelpMe(p.AccountId), EUniverse.Public, EAccountType.Individual).ConvertToUInt64(),
+                    PlayerSlot = p.PlayerSlot,
+                    TeamNumber = p.IsRadiant switch
+                    {
+                        true => 0,
+                        false => 1,
+                        null => 3
+                    },
+                    TeamSlot = Array.IndexOf(openMatch.Players, p) - (p.IsRadiant == false ? 5 : 0)
                 }).ToArray();
             }
         });
@@ -250,5 +242,13 @@ public class WebConfirmer
         await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
 
         _logger.LogInformation("Сломался {matchId} ({note}) {reason}", tracked.match.Id, tracked.CreateNote(), reason);
+    }
+
+    private uint HelpMe(ulong? id)
+    {
+        if (id == null)
+            return 0;
+
+        return (uint)id.Value;
     }
 }

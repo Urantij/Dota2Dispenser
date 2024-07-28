@@ -1,6 +1,7 @@
 using AutoMapper;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Match;
+using Dota2Dispenser.NoSteam;
 using Dota2Dispenser.Person;
 using Dota2Dispenser.Routes;
 using Dota2Dispenser.Shared.Consts;
@@ -54,6 +55,7 @@ public class Program
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        builder.Services.AddSingleton<OpenDotaService>();
         builder.Services.AddSingleton<DotaApiService>();
         builder.Services.AddSingleton<Databaser>();
         builder.Services.AddSingleton<TargetsContainer>();
@@ -103,14 +105,8 @@ public class Program
         app.Services.GetRequiredService<SourceTvMovement>().Init();
         app.Services.GetRequiredService<SteamService>().Init();
 
-        AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
-        {
-            SqliteConnection.ClearAllPools();
-        };
-        AppDomain.CurrentDomain.DomainUnload += (sender, e) =>
-        {
-            SqliteConnection.ClearAllPools();
-        };
+        AppDomain.CurrentDomain.ProcessExit += (sender, e) => { SqliteConnection.ClearAllPools(); };
+        AppDomain.CurrentDomain.DomainUnload += (sender, e) => { SqliteConnection.ClearAllPools(); };
 
         app.MapGet("/jokerge", () => "Hello World!");
 
