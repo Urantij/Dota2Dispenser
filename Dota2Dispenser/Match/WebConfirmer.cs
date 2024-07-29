@@ -26,7 +26,7 @@ public class WebConfirmer
     private readonly ILogger<WebConfirmer> _logger;
 
     /// <summary>
-    /// Как долго может барахтаться игра, прежде чем её назовут брокен и выкинут.
+    /// Пауза между запросами к апи.
     /// </summary>
     readonly TimeSpan updateDelayTime;
 
@@ -134,7 +134,7 @@ public class WebConfirmer
         }
     }
 
-    async Task CheckMatchAsync(TrackedMatch tracked)
+    private async Task CheckMatchAsync(TrackedMatch tracked)
     {
         if (tracked.match.TvInfo == null)
             return;
@@ -146,7 +146,7 @@ public class WebConfirmer
         }
         catch (MatchNotFoundException)
         {
-            _logger.LogWarning("Матч не найден {id}", tracked.match.TvInfo.MatchId);
+            _logger.LogWarning("Матч не найден {id} ({sourceId})", tracked.match.Id, tracked.match.TvInfo.MatchId);
             return;
         }
         catch (Exception e)
@@ -215,7 +215,8 @@ public class WebConfirmer
                     PartyIndex = -2,
                     LeaverStatus = p.LeaverStatus,
                     HeroId = p.HeroId,
-                    SteamId = new SteamID(HelpMe(p.AccountId), EUniverse.Public, EAccountType.Individual).ConvertToUInt64(),
+                    SteamId = new SteamID(HelpMe(p.AccountId), EUniverse.Public, EAccountType.Individual)
+                        .ConvertToUInt64(),
                     PlayerSlot = p.PlayerSlot,
                     TeamNumber = p.IsRadiant switch
                     {
@@ -236,7 +237,7 @@ public class WebConfirmer
         _logger.LogInformation("Закрыли {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
     }
 
-    async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
+    private async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
     {
         _matchTracker.RemoveDeadMatch(tracked);
         await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
