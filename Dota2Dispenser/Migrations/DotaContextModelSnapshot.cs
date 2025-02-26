@@ -15,7 +15,7 @@ namespace Dota2Dispenser.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "7.0.5");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.2");
 
             modelBuilder.Entity("Dota2Dispenser.Database.Models.AccountModel", b =>
                 {
@@ -65,7 +65,7 @@ namespace Dota2Dispenser.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<uint>("HeroId")
+                    b.Property<int>("HeroId")
                         .HasColumnType("INTEGER");
 
                     b.Property<int?>("LeaverStatus")

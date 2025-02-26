@@ -31,7 +31,7 @@ public class PlayerModel
     /// <summary>
     /// 0, если инфы нет. герои становятся доступны через 2 минуты как их пикнут (дилей)
     /// </summary>
-    public uint HeroId { get; set; }
+    public int HeroId { get; set; }
     /// <summary>
     /// Становится доступен, когда игра успешно завершается
     /// http://sharonkuo.me/dota2/matchdetails.html
@@ -63,7 +63,7 @@ public class PlayerModel
     public int? TeamSlot { get; set; }
 
     public PlayerModel() { }
-    public PlayerModel(int matchId, ulong steamId, uint heroId)
+    public PlayerModel(int matchId, ulong steamId, int heroId)
     {
         MatchId = matchId;
         SteamId = steamId;

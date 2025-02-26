@@ -85,7 +85,7 @@ public class SteamService
 
         _logger.LogInformation("Запускаем стим клиент...");
 
-        Task.Run(() =>
+        Task.Run(async () =>
         {
             TryConnect();
 
@@ -94,7 +94,7 @@ public class SteamService
             while (isRunning && thatObject == sessionObject && !_lifetime.ApplicationStopping.IsCancellationRequested)
             {
                 // in order for the callbacks to get routed, they need to be handled by the manager
-                callbackManager.RunWaitCallbacks(TimeSpan.FromMilliseconds(500));
+                await callbackManager.RunWaitCallbackAsync(_lifetime.ApplicationStopping);
             }
         });
     }

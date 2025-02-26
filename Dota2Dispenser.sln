@@ -7,6 +7,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dota2Dispenser", "Dota2Disp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dota2Dispenser.Shared", "Dota2Dispenser.Shared\Dota2Dispenser.Shared.csproj", "{D961D935-A49A-4215-819B-1914E98B77CF}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SteamKitDota2", "SteamKitDota2", "{C6FF75FA-BF23-46CE-9CD1-55CFEA3D85D0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SteamKitDota2", "SteamKitDota2\SteamKitDota2\SteamKitDota2.csproj", "{80CDC26D-6327-409A-8ECE-A8B46632EA57}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +28,12 @@ Global
 		{D961D935-A49A-4215-819B-1914E98B77CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D961D935-A49A-4215-819B-1914E98B77CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D961D935-A49A-4215-819B-1914E98B77CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{80CDC26D-6327-409A-8ECE-A8B46632EA57}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{80CDC26D-6327-409A-8ECE-A8B46632EA57}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{80CDC26D-6327-409A-8ECE-A8B46632EA57}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{80CDC26D-6327-409A-8ECE-A8B46632EA57}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{80CDC26D-6327-409A-8ECE-A8B46632EA57} = {C6FF75FA-BF23-46CE-9CD1-55CFEA3D85D0}
 	EndGlobalSection
 EndGlobal
