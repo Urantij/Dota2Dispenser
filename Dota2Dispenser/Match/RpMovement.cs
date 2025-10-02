@@ -158,7 +158,7 @@ public class RpMovement
                     DotaRichPresenceInfo? rpInfo = rp_response.response.rich_presence
                     .Where(rp => rp.steamid_user == target.SteamID)
                     // тут не уверен
-                    .Select(rp => rp.rich_presence_kv?.Length > 0 ? new DotaRichPresenceInfo(rp.rich_presence_kv) : new DotaRichPresenceInfo(rp.rich_presense))
+                    .Select(DotaRichPresenceInfo.FromRichPresence)
                     .FirstOrDefault(); // Single?
 
                     await ExecuteRpProcessingAsync(target, rpInfo);
