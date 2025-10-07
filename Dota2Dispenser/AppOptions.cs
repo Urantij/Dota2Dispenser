@@ -11,6 +11,12 @@ public class AppOptions
     public TimeSpan EarlyAbandonTime { get; set; } = TimeSpan.FromMinutes(1);
 
     public TimeSpan WebConfirmerUpdateDelayTime { get; set; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Сколько времени нужно подождать после смерти матча, чтобы начать его трогать через апи
+    /// </summary>
+    public TimeSpan WebConfirmerDeathAddedTime { get; set; } = TimeSpan.FromSeconds(10);
+
     public TimeSpan TimeToConfirmBroken { get; set; } = TimeSpan.FromHours(2);
 
     public TimeSpan RpUpdateDelayTime { get; set; } = TimeSpan.FromSeconds(30);

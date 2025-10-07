@@ -29,10 +29,16 @@ public class TrackedMatch
     /// </summary>
     public bool GotAllHeroes { get; set; } = false;
 
-    public TrackedMatch(MatchModel match, bool gotAllHeroes)
+    /// <summary>
+    /// Когда матч отметили как ДЕД
+    /// </summary>
+    public DateTimeOffset? DeathDate { get; set; }
+
+    public TrackedMatch(MatchModel match, bool gotAllHeroes, DateTimeOffset? deathDate)
     {
         this.Match = match;
         this.GotAllHeroes = gotAllHeroes;
+        this.DeathDate = deathDate;
     }
 
     public void AddPlayer(AccountModel account)

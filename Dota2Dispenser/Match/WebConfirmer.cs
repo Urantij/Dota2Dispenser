@@ -22,6 +22,11 @@ public class WebConfirmer
     /// </summary>
     private readonly TimeSpan _updateDelayTime;
 
+    /// <summary>
+    /// Сколько времени нужно ждать после смерти матча, чтобы начать его трогать.
+    /// </summary>
+    private readonly TimeSpan _deathAddedTime;
+
     private bool _isRunning = false;
 
     public WebConfirmer(OpenDotaService openDota, MatchTracker matchTracker, Databaser databaser,
@@ -33,6 +38,7 @@ public class WebConfirmer
         this._lifetime = lifetime;
         this._logger = logger;
         this._updateDelayTime = options.Value.WebConfirmerUpdateDelayTime;
+        _deathAddedTime = options.Value.WebConfirmerDeathAddedTime;
     }
 
     public void Init()
@@ -51,7 +57,7 @@ public class WebConfirmer
         // После каждой проверки матча берём коллекцию ещё раз и сохраняем. Если итема нет в обновлённой версии, значит его не проверяем.
         // Когда наша проходка заканчивается, берём матчи с той стороны, и кладём в себя новые матчи, которые были добавлены в конец.
         // Если их нет, просто берём всё и как бы начинаем цикл заново.
-        TrackedMatch[] startQueue = _matchTracker.GetDeadMatchesArray();
+        TrackedMatch[] startQueue = GetDeadMatchesToCheck();
         TrackedMatch[] updatedArray = startQueue;
 
         while (_isRunning && !_lifetime.ApplicationStopping.IsCancellationRequested)
@@ -69,7 +75,7 @@ public class WebConfirmer
                         return;
                     }
 
-                    startQueue = _matchTracker.GetDeadMatchesArray();
+                    startQueue = GetDeadMatchesToCheck();
                     updatedArray = startQueue;
                     continue;
                 }
@@ -89,7 +95,7 @@ public class WebConfirmer
                             return;
                         }
 
-                        updatedArray = _matchTracker.GetDeadMatchesArray();
+                        updatedArray = GetDeadMatchesToCheck();
                     }
                 }
 
@@ -100,7 +106,7 @@ public class WebConfirmer
                 if (lastCheckedIndex == -1)
                 {
                     // Никаких новых нет, просто начинаем цикл с нуля. Мы уже подождали в цикле выше, так что сидим чилим.
-                    startQueue = _matchTracker.GetDeadMatchesArray();
+                    startQueue = GetDeadMatchesToCheck();
                     updatedArray = startQueue;
                     continue;
                 }
@@ -117,7 +123,7 @@ public class WebConfirmer
                 else
                 {
                     // Нового нет, просто начинаем заново.
-                    startQueue = _matchTracker.GetDeadMatchesArray();
+                    startQueue = GetDeadMatchesToCheck();
                     updatedArray = startQueue;
                 }
             }
@@ -237,6 +243,21 @@ public class WebConfirmer
         }
 
         _logger.LogInformation("Закрыли {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
+    }
+
+    private TrackedMatch[] GetDeadMatchesToCheck()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        return _matchTracker.GetDeadMatchesMODS(list => list.Where(match =>
+        {
+            if (match.DeathDate == null)
+                return false;
+
+            TimeSpan passed = now - match.DeathDate.Value;
+
+            return passed >= _deathAddedTime;
+        }));
     }
 
     private uint HelpMe(ulong? id)

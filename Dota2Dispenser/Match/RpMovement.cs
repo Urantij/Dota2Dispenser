@@ -251,7 +251,7 @@ public class RpMovement
                         MatchResult = MatchResult.None
                     };
 
-                    currentMatch = new TrackedMatch(match, false);
+                    currentMatch = new TrackedMatch(match, false, null);
                     currentMatch.AddPlayer(target);
                     UpdateParties(currentMatch, target.SteamID, rpInfo.party_Members);
                     await UpdateMatchRpStatusAsync(currentMatch, rpInfo, false);

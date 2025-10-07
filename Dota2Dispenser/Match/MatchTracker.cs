@@ -54,7 +54,7 @@ public class MatchTracker
 
         // TODO можно убрать матчи, где больше нет отслеживаемых челов
         var games = unfinished
-            .Select(m => new TrackedMatch(m, m.Players?.All(p => p.HeroId != 0) == true))
+            .Select(m => new TrackedMatch(m, m.Players?.All(p => p.HeroId != 0) == true, DateTimeOffset.UtcNow))
             .ToArray();
 
         _deadMatches.AddRange(games);
@@ -65,6 +65,14 @@ public class MatchTracker
         lock (_deadMatches)
         {
             return _deadMatches.ToArray();
+        }
+    }
+
+    public TrackedMatch[] GetDeadMatchesMODS(Func<List<TrackedMatch>, IEnumerable<TrackedMatch>> mods)
+    {
+        lock (_deadMatches)
+        {
+            return mods(_deadMatches).ToArray();
         }
     }
 
@@ -124,6 +132,8 @@ public class MatchTracker
                 // Уже убрали из мёртвых.
                 return;
             }
+
+            tracked.DeathDate = null;
         }
 
         lock (_liveMatches)
@@ -148,6 +158,8 @@ public class MatchTracker
             lock (_deadMatches)
             {
                 _deadMatches.Add(tracked);
+
+                tracked.DeathDate = DateTimeOffset.UtcNow;
             }
         }
         else
