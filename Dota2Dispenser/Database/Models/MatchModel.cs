@@ -1,28 +1,22 @@
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Shared.Consts;
-using Microsoft.EntityFrameworkCore;
 
 namespace Dota2Dispenser.Database.Models;
 
 public class MatchModel
 {
-    [Key]
     /// <summary>
     /// Айди в базе.
     /// </summary>
+    [Key]
     public int Id { get; set; }
 
-    [Required]
-    public ulong WatchableGameId { get; set; }
+    [Required] public ulong WatchableGameId { get; set; }
 
-    [Required]
     /// <summary>
     /// UTC. Если игра сломана или не закончилась, то дата очень примерная.
     /// </summary>
+    [Required]
     public DateTime GameDate { get; set; }
 
     /// <summary>
@@ -40,7 +34,10 @@ public class MatchModel
     /// </summary>
     public ICollection<PlayerModel>? Players { get; set; }
 
-    public MatchModel() { }
+    public MatchModel()
+    {
+    }
+
     public MatchModel(ulong watchableGameId, DateTime gameDate)
     {
         WatchableGameId = watchableGameId;

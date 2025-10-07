@@ -1,4 +1,3 @@
-using AutoMapper;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Match;
 using Dota2Dispenser.NoSteam;
@@ -24,7 +23,8 @@ public class Program
         {
             System.Console.WriteLine($"UnobservedTaskException {sender?.GetType().Name ?? "Null"}");
 
-            File.WriteAllLines($"UnobservedTaskException {DateTime.Now:yyyy.MM.dd HH:mm:ss}.txt", new[] { sender?.GetType().Name ?? "Null", ex.ToString() ?? "No string" });
+            File.WriteAllLines($"UnobservedTaskException {DateTime.Now:yyyy.MM.dd HH:mm:ss}.txt",
+                new[] { sender?.GetType().Name ?? "Null", ex.ToString() ?? "No string" });
         };
 
         var builder = WebApplication.CreateBuilder(appArgs);

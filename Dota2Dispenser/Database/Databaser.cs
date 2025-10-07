@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace Dota2Dispenser.Database;
@@ -17,7 +13,7 @@ public partial class Databaser
 
     public async Task InitAsync()
     {
-        using var context = await _contextFactory.CreateDbContextAsync();
+        await using var context = await _contextFactory.CreateDbContextAsync();
 
         await context.Database.MigrateAsync();
     }

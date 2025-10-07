@@ -1,21 +1,13 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Dota2Dispenser;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.NoSteam;
 using Dota2Dispenser.Shared.Consts;
-using Dota2Dispenser.Steam;
 using Microsoft.Extensions.Options;
 using SteamKit2;
-using SteamKitDota2.Web;
 
 namespace Dota2Dispenser.Match;
 
 /// <summary>
 /// Берёт мертвые матчи из матчтрекера и чекает их через веб апи.
-/// Также очень старые мертвые матчи удаляет.
 /// </summary>
 public class WebConfirmer
 {
@@ -28,9 +20,9 @@ public class WebConfirmer
     /// <summary>
     /// Пауза между запросами к апи.
     /// </summary>
-    readonly TimeSpan updateDelayTime;
+    private readonly TimeSpan _updateDelayTime;
 
-    bool isRunning = false;
+    private bool _isRunning = false;
 
     public WebConfirmer(OpenDotaService openDota, MatchTracker matchTracker, Databaser databaser,
         IHostApplicationLifetime lifetime, ILogger<WebConfirmer> logger, IOptions<AppOptions> options)
@@ -40,18 +32,18 @@ public class WebConfirmer
         this._databaser = databaser;
         this._lifetime = lifetime;
         this._logger = logger;
-        this.updateDelayTime = options.Value.WebConfirmerUpdateDelayTime;
+        this._updateDelayTime = options.Value.WebConfirmerUpdateDelayTime;
     }
 
     public void Init()
     {
         _logger.LogInformation("Запускаем...");
-        isRunning = true;
+        _isRunning = true;
 
         Task.Run(LoopAsync);
     }
 
-    async Task LoopAsync()
+    private async Task LoopAsync()
     {
         // Смысл в том, что коллекция на той стороне может меняться.
         // Элементы пропадать из всех частей, добавляться новые в конец.
@@ -62,7 +54,7 @@ public class WebConfirmer
         TrackedMatch[] startQueue = _matchTracker.GetDeadMatchesArray();
         TrackedMatch[] updatedArray = startQueue;
 
-        while (isRunning && !_lifetime.ApplicationStopping.IsCancellationRequested)
+        while (_isRunning && !_lifetime.ApplicationStopping.IsCancellationRequested)
         {
             try
             {
@@ -72,7 +64,10 @@ public class WebConfirmer
                     {
                         await Task.Delay(TimeSpan.FromSeconds(1), _lifetime.ApplicationStopping);
                     }
-                    catch { return; }
+                    catch
+                    {
+                        return;
+                    }
 
                     startQueue = _matchTracker.GetDeadMatchesArray();
                     updatedArray = startQueue;
@@ -87,9 +82,13 @@ public class WebConfirmer
 
                         try
                         {
-                            await Task.Delay(updateDelayTime, _lifetime.ApplicationStopping);
+                            await Task.Delay(_updateDelayTime, _lifetime.ApplicationStopping);
                         }
-                        catch { return; }
+                        catch
+                        {
+                            return;
+                        }
+
                         updatedArray = _matchTracker.GetDeadMatchesArray();
                     }
                 }
@@ -127,26 +126,29 @@ public class WebConfirmer
                 _logger.LogError(e, $"{nameof(LoopAsync)} Exception");
                 try
                 {
-                    await Task.Delay(updateDelayTime, _lifetime.ApplicationStopping);
+                    await Task.Delay(_updateDelayTime, _lifetime.ApplicationStopping);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
             }
         }
     }
 
     private async Task CheckMatchAsync(TrackedMatch tracked)
     {
-        if (tracked.match.TvInfo == null)
+        if (tracked.Match.TvInfo == null)
             return;
 
         OpenMatch openMatch;
         try
         {
-            openMatch = await _openDota.DoAsync(tracked.match.TvInfo.MatchId, _lifetime.ApplicationStopping);
+            openMatch = await _openDota.DoAsync(tracked.Match.TvInfo.MatchId, _lifetime.ApplicationStopping);
         }
         catch (MatchNotFoundException)
         {
-            _logger.LogWarning("Матч не найден {id} ({sourceId})", tracked.match.Id, tracked.match.TvInfo.MatchId);
+            _logger.LogWarning("Матч не найден {id} ({sourceId})", tracked.Match.Id, tracked.Match.TvInfo.MatchId);
             return;
         }
         catch (Exception e)
@@ -157,16 +159,16 @@ public class WebConfirmer
 
         _matchTracker.RemoveDeadMatch(tracked);
 
-        await _databaser.UpdateMatchAsync(tracked.match, () =>
+        await _databaser.UpdateMatchAsync(tracked.Match, () =>
         {
-            tracked.match.GameDate = DateTimeOffset.FromUnixTimeSeconds(openMatch.StartTime).UtcDateTime;
-            tracked.match.MatchResult = MatchResult.Finished;
-            tracked.match.DetailsInfo =
+            tracked.Match.GameDate = DateTimeOffset.FromUnixTimeSeconds(openMatch.StartTime).UtcDateTime;
+            tracked.Match.MatchResult = MatchResult.Finished;
+            tracked.Match.DetailsInfo =
                 new Database.Models.DetailsMatchInfo(openMatch.RadiantWin, TimeSpan.FromSeconds(openMatch.Duration));
 
-            if (tracked.match.Players?.Count == openMatch.Players.Length)
+            if (tracked.Match.Players?.Count == openMatch.Players.Length)
             {
-                foreach (var player in tracked.match.Players)
+                foreach (var player in tracked.Match.Players)
                 {
                     OpenPlayer? detailed = openMatch.Players
                         .Where(p => p.AccountId != null && p.AccountId != 4294967295)
@@ -209,9 +211,9 @@ public class WebConfirmer
             {
                 // Чтобы это случилось, бот должен быть выключен до того, как пройдёт пара минут с начала матча.
                 // Маловероятно, всё равно.
-                tracked.match.Players = openMatch.Players.Select(p => new Database.Models.PlayerModel()
+                tracked.Match.Players = openMatch.Players.Select(p => new Database.Models.PlayerModel()
                 {
-                    Match = tracked.match,
+                    Match = tracked.Match,
                     PartyIndex = -2,
                     LeaverStatus = p.LeaverStatus,
                     HeroId = p.HeroId,
@@ -229,20 +231,12 @@ public class WebConfirmer
             }
         });
 
-        if (!tracked.gotAllHeroes)
+        if (!tracked.GotAllHeroes)
         {
             _logger.LogDebug("Добили героев.");
         }
 
-        _logger.LogInformation("Закрыли {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
-    }
-
-    private async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
-    {
-        _matchTracker.RemoveDeadMatch(tracked);
-        await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
-
-        _logger.LogInformation("Сломался {matchId} ({note}) {reason}", tracked.match.Id, tracked.CreateNote(), reason);
+        _logger.LogInformation("Закрыли {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
     }
 
     private uint HelpMe(ulong? id)

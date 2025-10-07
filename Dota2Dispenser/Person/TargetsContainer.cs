@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Database.Models;
 
@@ -12,9 +8,9 @@ namespace Dota2Dispenser.Person;
 /// </summary>
 public class TargetsContainer
 {
-    readonly object locker = new();
+    private readonly Lock _locker = new();
 
-    readonly List<AccountModel> targets = new();
+    private readonly List<AccountModel> _targets = new();
 
     private readonly Databaser _databaser;
 
@@ -27,14 +23,14 @@ public class TargetsContainer
 
     public async Task InitAsync()
     {
-        targets.AddRange(await _databaser.GetAccountsAsync());
+        _targets.AddRange(await _databaser.GetAccountsAsync());
     }
 
     public bool Contains(ulong target)
     {
-        lock (locker)
+        lock (_locker)
         {
-            return targets.Any(t => t.SteamID == target);
+            return _targets.Any(t => t.SteamID == target);
         }
     }
 
@@ -44,18 +40,18 @@ public class TargetsContainer
             return false;
 
         AccountModel? account;
-        lock (locker)
+        lock (_locker)
         {
-            account = targets.FirstOrDefault(t => t.SteamID == target);
+            account = _targets.FirstOrDefault(t => t.SteamID == target);
         }
 
         if (account == null)
         {
             account = await _databaser.AddAccountAsync(target, note, DateTime.UtcNow);
 
-            lock (locker)
+            lock (_locker)
             {
-                targets.Add(account);
+                _targets.Add(account);
             }
 
             // TODO трек матчей, куда случайно попался новый таргет. это очень тупо, но забавно
@@ -81,14 +77,14 @@ public class TargetsContainer
             return requestRemoved;
 
         AccountModel? account;
-        lock (locker)
+        lock (_locker)
         {
-            account = targets.FirstOrDefault(t => t.SteamID == targetId);
+            account = _targets.FirstOrDefault(t => t.SteamID == targetId);
 
             if (account == null)
                 return requestRemoved;
 
-            targets.Remove(account);
+            _targets.Remove(account);
         }
 
         TargetRemoved?.Invoke(account);
@@ -98,17 +94,17 @@ public class TargetsContainer
 
     public AccountModel[] GetTargets()
     {
-        lock (locker)
+        lock (_locker)
         {
-            return targets.ToArray();
+            return _targets.ToArray();
         }
     }
 
     public AccountModel? FindAccount(ulong targetId)
     {
-        lock (locker)
+        lock (_locker)
         {
-            return targets.FirstOrDefault(t => t.SteamID == targetId);
+            return _targets.FirstOrDefault(t => t.SteamID == targetId);
         }
     }
 }

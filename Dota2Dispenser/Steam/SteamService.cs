@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using SteamKit2;
 using SteamKitDota2;
@@ -10,27 +6,29 @@ namespace Dota2Dispenser.Steam;
 
 public class SteamService
 {
-    readonly ILogger _logger;
-    readonly IHostApplicationLifetime _lifetime;
+    private readonly ILogger _logger;
+    private readonly IHostApplicationLifetime _lifetime;
 
-    public readonly SteamClient client;
-    readonly SteamUser user;
-    readonly SteamFriends friends;
-    public readonly SteamDota dota;
+    public SteamClient Client { get; }
+    public SteamDota Dota { get; }
 
-    readonly CallbackManager callbackManager;
+    private readonly SteamUser _user;
+    private readonly SteamFriends _friends;
+
+    private readonly CallbackManager _callbackManager;
 
     // наверное, это единственный раз, когда я юзал этот синтаксис
-    readonly string username, password;
+    private readonly string _username, _password;
 
-    readonly TimeSpan reconnectTime = TimeSpan.FromSeconds(10);
-    readonly bool dontStart;
+    private readonly TimeSpan _reconnectTime = TimeSpan.FromSeconds(10);
+    private readonly bool _dontStart;
 
-    bool isRunning = false;
+    private bool _isRunning = false;
+
     /// <summary>
     /// Сессия начинается со Start, заканчивается на Stop.
     /// </summary>
-    object? sessionObject = null;
+    private object? _sessionObject = null;
 
     public bool LoggedIn { get; private set; } = false;
 
@@ -41,47 +39,47 @@ public class SteamService
         this._lifetime = lifetime;
         _logger = loggerFactory.CreateLogger(this.GetType());
 
-        username = options.Value.SteamUsername;
-        password = options.Value.SteamPassword;
-        dontStart = options.Value.DontStartSteamClient == true;
+        _username = options.Value.SteamUsername;
+        _password = options.Value.SteamPassword;
+        _dontStart = options.Value.DontStartSteamClient == true;
 
-        client = new SteamClient();
-        callbackManager = new CallbackManager(client);
+        Client = new SteamClient();
+        _callbackManager = new CallbackManager(Client);
 
-        var gameCoordinator = client.GetHandler<SteamGameCoordinator>()!;
+        var gameCoordinator = Client.GetHandler<SteamGameCoordinator>()!;
 
-        dota = new SteamDota(client, callbackManager, true, loggerFactory);
-        client.AddHandler(dota);
+        Dota = new SteamDota(Client, _callbackManager, true, loggerFactory);
+        Client.AddHandler(Dota);
 
-        user = client.GetHandler<SteamUser>()!;
-        friends = client.GetHandler<SteamFriends>()!;
+        _user = Client.GetHandler<SteamUser>()!;
+        _friends = Client.GetHandler<SteamFriends>()!;
 
-        callbackManager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
-        callbackManager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
+        _callbackManager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
+        _callbackManager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
 
-        callbackManager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
-        callbackManager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
+        _callbackManager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+        _callbackManager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
 
-        callbackManager.Subscribe<SteamFriends.FriendAddedCallback>(OnFriendsAdded);
-        callbackManager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
+        _callbackManager.Subscribe<SteamFriends.FriendAddedCallback>(OnFriendsAdded);
+        _callbackManager.Subscribe<SteamFriends.FriendsListCallback>(OnFriendsList);
 
-        callbackManager.Subscribe<SteamDota.DotaReadyCallback>(OnDotaReady);
-        callbackManager.Subscribe<SteamDota.DotaNotReadyCallback>(OnDotaNotReady);
-        callbackManager.Subscribe<SteamDota.DotaHelloTimeoutCallback>(OnDotaTimeout);
+        _callbackManager.Subscribe<SteamDota.DotaReadyCallback>(OnDotaReady);
+        _callbackManager.Subscribe<SteamDota.DotaNotReadyCallback>(OnDotaNotReady);
+        _callbackManager.Subscribe<SteamDota.DotaHelloTimeoutCallback>(OnDotaTimeout);
 
-        callbackManager.Subscribe<SteamDota.DotaPersonaStateCallback>(OnDotaPersonaState);
+        _callbackManager.Subscribe<SteamDota.DotaPersonaStateCallback>(OnDotaPersonaState);
 
         _lifetime.ApplicationStopping.Register(ApplicationStopping);
     }
 
     public void Init()
     {
-        if (isRunning || dontStart)
+        if (_isRunning || _dontStart)
             return;
 
-        isRunning = true;
+        _isRunning = true;
 
-        var thatObject = sessionObject = new();
+        var thatObject = _sessionObject = new();
 
         _logger.LogInformation("Запускаем стим клиент...");
 
@@ -91,43 +89,43 @@ public class SteamService
 
             // Без sessionObject
             // Если слишком быстро сделать Stop Start, в теории можно запустить два цикла обработки колбеков
-            while (isRunning && thatObject == sessionObject && !_lifetime.ApplicationStopping.IsCancellationRequested)
+            while (_isRunning && thatObject == _sessionObject && !_lifetime.ApplicationStopping.IsCancellationRequested)
             {
                 // in order for the callbacks to get routed, they need to be handled by the manager
-                await callbackManager.RunWaitCallbackAsync(_lifetime.ApplicationStopping);
+                await _callbackManager.RunWaitCallbackAsync(_lifetime.ApplicationStopping);
             }
         });
     }
 
     public void Stop()
     {
-        if (!isRunning)
+        if (!_isRunning)
             return;
 
-        isRunning = false;
+        _isRunning = false;
 
-        sessionObject = null;
+        _sessionObject = null;
 
         _logger.LogInformation("Останавливает стим клиент...");
 
-        client.Disconnect();
+        Client.Disconnect();
     }
 
     private void TryConnect()
     {
         _logger.LogInformation("Стим клиент пытается подключиться...");
 
-        client.Connect();
+        Client.Connect();
     }
 
     private void OnConnected(SteamClient.ConnectedCallback obj)
     {
         _logger.LogInformation("Клиент стима подключился, выполняется логин...");
 
-        user.LogOn(new SteamUser.LogOnDetails
+        _user.LogOn(new SteamUser.LogOnDetails
         {
-            Username = username,
-            Password = password,
+            Username = _username,
+            Password = _password,
         });
     }
 
@@ -137,11 +135,11 @@ public class SteamService
 
         LoggedIn = false;
 
-        if (isRunning)
+        if (_isRunning)
         {
             Task.Run(async () =>
             {
-                await Task.Delay(reconnectTime);
+                await Task.Delay(_reconnectTime);
 
                 TryConnect();
             });
@@ -181,7 +179,7 @@ public class SteamService
         {
             _logger.LogInformation("Добавляем друга {id}...", friend.SteamID);
 
-            friends.AddFriend(friend.SteamID);
+            _friends.AddFriend(friend.SteamID);
         }
     }
 
@@ -199,7 +197,7 @@ public class SteamService
     {
         _logger.LogInformation("Дота таймаут...");
 
-        client.Disconnect();
+        Client.Disconnect();
     }
 
     private void OnDotaPersonaState(SteamDota.DotaPersonaStateCallback obj)

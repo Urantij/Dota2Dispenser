@@ -1,14 +1,11 @@
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Dota2Dispenser;
 
 public class UlongRouteConstraint : IRouteConstraint
 {
-    public bool Match(HttpContext? httpContext, IRouter? route, string routeKey, RouteValueDictionary values, RouteDirection routeDirection)
+    public bool Match(HttpContext? httpContext, IRouter? route, string routeKey, RouteValueDictionary values,
+        RouteDirection routeDirection)
     {
         ArgumentNullException.ThrowIfNull(routeKey);
         ArgumentNullException.ThrowIfNull(values);

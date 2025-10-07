@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Primitives;
 
 namespace Dota2Dispenser.Routes;
@@ -14,6 +10,7 @@ public static class QueryHelper
         {
             return values.FirstOrDefault();
         }
+
         return null;
     }
 
@@ -24,6 +21,7 @@ public static class QueryHelper
             if (ulong.TryParse(values.FirstOrDefault(), out ulong result))
                 return result;
         }
+
         return null;
     }
 
@@ -34,6 +32,7 @@ public static class QueryHelper
             if (int.TryParse(values.FirstOrDefault(), out int result))
                 return result;
         }
+
         return null;
     }
 
@@ -44,6 +43,7 @@ public static class QueryHelper
             if (long.TryParse(values.FirstOrDefault(), out long result))
                 return DateTimeOffset.FromUnixTimeSeconds(result);
         }
+
         return null;
     }
 }

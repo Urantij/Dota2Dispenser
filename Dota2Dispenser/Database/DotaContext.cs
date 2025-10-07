@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Database.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
@@ -21,7 +17,6 @@ public class DotaContext : DbContext
     public DotaContext(DbContextOptions<DotaContext> options)
         : base(options)
     {
-
     }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
@@ -29,9 +24,9 @@ public class DotaContext : DbContext
         base.ConfigureConventions(configurationBuilder);
 
         configurationBuilder.Properties<DateTime>()
-                            .HaveConversion<DateTimeToBinaryConverter>();
+            .HaveConversion<DateTimeToBinaryConverter>();
 
         configurationBuilder.Properties<DateTime?>()
-                            .HaveConversion<DateTimeToBinaryConverter>();
+            .HaveConversion<DateTimeToBinaryConverter>();
     }
 }

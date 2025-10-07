@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Database.Models;
 using Dota2Dispenser.Person;
 using Dota2Dispenser.Shared.Consts;
 using Dota2Dispenser.Steam;
 using Microsoft.Extensions.Options;
-using SteamKit2;
 using SteamKitDota2;
 using SteamKitDota2.More;
 
@@ -17,15 +12,15 @@ namespace Dota2Dispenser.Match;
 // Мы не хотим влиять на систему одновременно с одного матча или с одного аккаунта.
 class SynchroRp
 {
-    public readonly AccountModel account;
-    public readonly ulong? watchableGameId;
-    public readonly TaskCompletionSource tsc;
+    public AccountModel Account { get; }
+    public ulong? WatchableGameId { get; }
+    public TaskCompletionSource Tsc { get; }
 
     public SynchroRp(AccountModel account, ulong? watchableGameId, TaskCompletionSource tsc)
     {
-        this.account = account;
-        this.watchableGameId = watchableGameId;
-        this.tsc = tsc;
+        this.Account = account;
+        this.WatchableGameId = watchableGameId;
+        this.Tsc = tsc;
     }
 }
 
@@ -35,7 +30,11 @@ class SynchroRp
 public class RpMovement
 {
     // вотчбл айди кстати и так 0, но ладно
-    private static readonly string[] ignoreStatuses = { "#DOTA_RP_INIT", "#DOTA_RP_IDLE", "#DOTA_RP_SPECTATING", "#DOTA_RP_FINDING_MATCH", "#DOTA_RP_GAME_IN_PROGRESS_CUSTOM" };
+    private static readonly string[] IgnoreStatuses =
+    {
+        "#DOTA_RP_INIT", "#DOTA_RP_IDLE", "#DOTA_RP_SPECTATING", "#DOTA_RP_FINDING_MATCH",
+        "#DOTA_RP_GAME_IN_PROGRESS_CUSTOM"
+    };
 
     private readonly MatchTracker _matchTracker;
     private readonly TargetsContainer _targetsContainer;
@@ -44,13 +43,15 @@ public class RpMovement
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger<RpMovement> _logger;
 
-    private readonly List<SynchroRp> processingAccounts = new();
+    private readonly List<SynchroRp> _processingAccounts = new();
 
-    private readonly TimeSpan updateDelayTime;
+    private readonly TimeSpan _updateDelayTime;
 
-    private bool isRunning = false;
+    private bool _isRunning = false;
 
-    public RpMovement(MatchTracker matchTracker, TargetsContainer targetsContainer, SteamService steam, Databaser databaser, IHostApplicationLifetime lifetime, ILogger<RpMovement> logger, IOptions<AppOptions> options)
+    public RpMovement(MatchTracker matchTracker, TargetsContainer targetsContainer, SteamService steam,
+        Databaser databaser, IHostApplicationLifetime lifetime, ILogger<RpMovement> logger,
+        IOptions<AppOptions> options)
     {
         _matchTracker = matchTracker;
         _targetsContainer = targetsContainer;
@@ -58,18 +59,18 @@ public class RpMovement
         _databaser = databaser;
         _lifetime = lifetime;
         _logger = logger;
-        updateDelayTime = options.Value.RpUpdateDelayTime;
+        _updateDelayTime = options.Value.RpUpdateDelayTime;
 
         steam.DotaPersonaReceived += DotaPersonaReceived;
     }
 
     public void Init()
     {
-        if (isRunning)
+        if (_isRunning)
             return;
 
         _logger.LogInformation("Запускаем...");
-        isRunning = true;
+        _isRunning = true;
 
         Task.Run(LoopAsync);
     }
@@ -101,11 +102,13 @@ public class RpMovement
         var help = new SynchroRp(target, rpInfo?.watchableGameId, tcs);
 
         Task[] existingTasks;
-        lock (processingAccounts)
+        lock (_processingAccounts)
         {
-            existingTasks = processingAccounts.Where(pa => pa.account == help.account || pa.watchableGameId == help.watchableGameId).Select(pa => pa.tsc.Task).ToArray();
+            existingTasks = _processingAccounts
+                .Where(pa => pa.Account == help.Account || pa.WatchableGameId == help.WatchableGameId)
+                .Select(pa => pa.Tsc.Task).ToArray();
 
-            processingAccounts.Add(help);
+            _processingAccounts.Add(help);
         }
 
         await Task.WhenAll(existingTasks);
@@ -117,24 +120,28 @@ public class RpMovement
         finally
         {
             tcs.SetResult();
-            lock (processingAccounts)
+            lock (_processingAccounts)
             {
-                processingAccounts.Remove(help);
+                _processingAccounts.Remove(help);
             }
         }
     }
 
     private async Task LoopAsync()
     {
-        while (isRunning && !_lifetime.ApplicationStopping.IsCancellationRequested)
+        while (_isRunning && !_lifetime.ApplicationStopping.IsCancellationRequested)
         {
-            if (!_steam.client.IsConnected || !_steam.LoggedIn)
+            if (!_steam.Client.IsConnected || !_steam.LoggedIn)
             {
                 try
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), _lifetime.ApplicationStopping);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
+
                 continue;
             }
 
@@ -145,21 +152,26 @@ public class RpMovement
                 {
                     await Task.Delay(TimeSpan.FromSeconds(1), _lifetime.ApplicationStopping);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
+
                 continue;
             }
 
             try
             {
-                SteamDota.RichPresenceInfoCallback rp_response = await _steam.dota.RequestRichPresence(targets.Select(t => t.SteamID).ToArray());
+                SteamDota.RichPresenceInfoCallback rp_response =
+                    await _steam.Dota.RequestRichPresence(targets.Select(t => t.SteamID).ToArray());
 
                 foreach (AccountModel target in targets)
                 {
                     DotaRichPresenceInfo? rpInfo = rp_response.response.rich_presence
-                    .Where(rp => rp.steamid_user == target.SteamID)
-                    // тут не уверен
-                    .Select(DotaRichPresenceInfo.FromRichPresence)
-                    .FirstOrDefault(); // Single?
+                        .Where(rp => rp.steamid_user == target.SteamID)
+                        // тут не уверен
+                        .Select(DotaRichPresenceInfo.FromRichPresence)
+                        .FirstOrDefault(); // Single?
 
                     await ExecuteRpProcessingAsync(target, rpInfo);
                 }
@@ -171,9 +183,12 @@ public class RpMovement
 
             try
             {
-                await Task.Delay(updateDelayTime, _lifetime.ApplicationStopping);
+                await Task.Delay(_updateDelayTime, _lifetime.ApplicationStopping);
             }
-            catch { return; }
+            catch
+            {
+                return;
+            }
         }
     }
 
@@ -194,7 +209,8 @@ public class RpMovement
 
         TrackedMatch? currentMatch;
 
-        if (rpInfo != null && rpInfo.watchableGameId != null && rpInfo.watchableGameId != 0 && !ignoreStatuses.Contains(rpInfo.status))
+        if (rpInfo != null && rpInfo.watchableGameId != null && rpInfo.watchableGameId != 0 &&
+            !IgnoreStatuses.Contains(rpInfo.status))
         {
             // Игрок находится в игре, за которой мы хотим следить.
             currentMatch = _matchTracker.FindLiveMatchByLobbyId(rpInfo.watchableGameId.Value);
@@ -202,7 +218,7 @@ public class RpMovement
             if (currentMatch != null)
             {
                 // Этот матч уже есть, всё в поряде чоколаде.
-                if (!currentMatch.playing.Contains(target))
+                if (!currentMatch.Playing.Contains(target))
                 {
                     currentMatch.AddPlayer(target);
                     UpdateParties(currentMatch, target.SteamID, rpInfo.party_Members);
@@ -216,7 +232,7 @@ public class RpMovement
 
                 if (currentMatch != null)
                 {
-                    if (!currentMatch.playing.Contains(target))
+                    if (!currentMatch.Playing.Contains(target))
                     {
                         currentMatch.AddPlayer(target);
                         UpdateParties(currentMatch, target.SteamID, rpInfo.party_Members);
@@ -252,9 +268,9 @@ public class RpMovement
 
         if (oldMatch != null && oldMatch != currentMatch)
         {
-            oldMatch.playing.Remove(target);
+            oldMatch.Playing.Remove(target);
 
-            if (oldMatch.playing.Count == 0)
+            if (oldMatch.Playing.Count == 0)
             {
                 // Никого нет, чтобы продолжать следить через рп, убиваем.
                 await _matchTracker.KillMatchAsync(oldMatch);
@@ -267,11 +283,11 @@ public class RpMovement
         if (party_Members == null)
             return;
 
-        bool exist = tracked.parties.Any(p => p.Contains(accountId));
+        bool exist = tracked.Parties.Any(p => p.Contains(accountId));
         if (exist)
             return;
 
-        tracked.parties.Add(party_Members);
+        tracked.Parties.Add(party_Members);
     }
 
     private Task UpdateMatchRpStatusAsync(TrackedMatch tracked, DotaRichPresenceInfo rpInfo, bool updateDb)
@@ -281,7 +297,7 @@ public class RpMovement
         // Не знаю, зачем я это добавил.
         // TODO xdd?
         // Имортал драфт не парсится, приходит нулл.
-        if (tracked.match.RichPresenceLobbyType != null)
+        if (tracked.Match.RichPresenceLobbyType != null)
             return Task.CompletedTask;
 
         string rpStatus;
@@ -308,12 +324,13 @@ public class RpMovement
         }
         catch (Exception e)
         {
-            _logger.LogError(e, $"{nameof(UpdateMatchRpStatusAsync)} Не удалось пропарсить рп ({{status}})", rpInfo.status);
+            _logger.LogError(e, $"{nameof(UpdateMatchRpStatusAsync)} Не удалось пропарсить рп ({{status}})",
+                rpInfo.status);
             return Task.CompletedTask;
         }
 
         if (updateDb)
-            return _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.RichPresenceLobbyType = rpStatus);
+            return _databaser.UpdateMatchAsync(tracked.Match, () => tracked.Match.RichPresenceLobbyType = rpStatus);
 
         return Task.CompletedTask;
     }

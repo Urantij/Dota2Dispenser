@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Dota2Dispenser.Person;
 
 namespace Dota2Dispenser.Routes;
@@ -43,7 +39,8 @@ public static class AccountRoutes
 
         string bodyContent = await reader.ReadToEndAsync();
 
-        var content = JsonSerializer.Deserialize<Shared.Models.PostAccountModel>(bodyContent, new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
+        var content = JsonSerializer.Deserialize<Shared.Models.PostAccountModel>(bodyContent,
+            new JsonSerializerOptions() { PropertyNameCaseInsensitive = true });
 
         if (content == null)
         {

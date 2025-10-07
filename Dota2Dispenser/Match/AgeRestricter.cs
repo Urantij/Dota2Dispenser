@@ -1,31 +1,30 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Shared.Consts;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Dota2Dispenser.Match;
 
+/// <summary>
+/// Проверяет мертвые матчи и убирает их из системы, если прошло много времени.
+/// </summary>
 public class AgeRestricter
 {
     private readonly MatchTracker _matchTracker;
     private readonly Databaser _databaser;
     private readonly IHostApplicationLifetime _lifetime;
     private readonly ILogger _logger;
-    private readonly TimeSpan ageLimit;
-    private readonly TimeSpan checkDelay;
+    private readonly TimeSpan _ageLimit;
+    private readonly TimeSpan _checkDelay;
 
-    public AgeRestricter(MatchTracker matchTracker, Databaser databaser, IHostApplicationLifetime lifetime, ILogger<AgeRestricter> logger, IOptions<AppOptions> options)
+    public AgeRestricter(MatchTracker matchTracker, Databaser databaser, IHostApplicationLifetime lifetime,
+        ILogger<AgeRestricter> logger, IOptions<AppOptions> options)
     {
         this._matchTracker = matchTracker;
         this._databaser = databaser;
         this._lifetime = lifetime;
         this._logger = logger;
-        ageLimit = options.Value.TimeToConfirmBroken;
-        checkDelay = options.Value.AgeRestricterCheckDelay;
+        _ageLimit = options.Value.TimeToConfirmBroken;
+        _checkDelay = options.Value.AgeRestricterCheckDelay;
     }
 
     public void Init()
@@ -35,7 +34,7 @@ public class AgeRestricter
         Task.Run(LoopAsync);
     }
 
-    async Task LoopAsync()
+    private async Task LoopAsync()
     {
         while (!_lifetime.ApplicationStopping.IsCancellationRequested)
         {
@@ -50,8 +49,8 @@ public class AgeRestricter
                 DateTime utcNow = DateTime.UtcNow;
                 foreach (var tracked in deadMatches)
                 {
-                    TimeSpan passed = utcNow - tracked.match.GameDate;
-                    if (passed < ageLimit)
+                    TimeSpan passed = utcNow - tracked.Match.GameDate;
+                    if (passed < _ageLimit)
                         continue;
 
                     // Прошло много времени, пора прощаться.
@@ -60,27 +59,33 @@ public class AgeRestricter
 
                 try
                 {
-                    await Task.Delay(checkDelay, _lifetime.ApplicationStopping);
+                    await Task.Delay(_checkDelay, _lifetime.ApplicationStopping);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
             }
             catch (Exception e)
             {
                 _logger.LogError(e, $"{nameof(LoopAsync)} Exception");
                 try
                 {
-                    await Task.Delay(checkDelay, _lifetime.ApplicationStopping);
+                    await Task.Delay(_checkDelay, _lifetime.ApplicationStopping);
                 }
-                catch { return; }
+                catch
+                {
+                    return;
+                }
             }
         }
     }
 
-    async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
+    private async Task RemoveMatchAsync(TrackedMatch tracked, string reason)
     {
         _matchTracker.RemoveDeadMatch(tracked);
-        await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.Broken);
+        await _databaser.UpdateMatchAsync(tracked.Match, () => tracked.Match.MatchResult = MatchResult.Broken);
 
-        _logger.LogInformation("Сломался {matchId} ({note}) {reason}", tracked.match.Id, tracked.CreateNote(), reason);
+        _logger.LogInformation("Сломался {matchId} ({note}) {reason}", tracked.Match.Id, tracked.CreateNote(), reason);
     }
 }

@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Dota2Dispenser.Database;
 using Dota2Dispenser.Database.Models;
 using Dota2Dispenser.Person;
@@ -27,26 +23,27 @@ public class MatchTracker
     /// Если матч убили очень рано, то, скорее всего, это додж до пика.
     /// В случае чего будет 2 матча в базе, всё равно.
     /// </summary>
-    readonly TimeSpan earlyAbandonTime;
+    private readonly TimeSpan _earlyAbandonTime;
 
     /// <summary>
     /// Матчи, которые прямо сейчас идут, и ждём, когда челы вылетят из них.
     /// Лив матчи вроде из одного треда трогаются, но раз я локаю дед, то буду и эти.
     /// </summary>
-    readonly List<TrackedMatch> liveMatches = new();
+    private readonly List<TrackedMatch> _liveMatches = new();
 
     /// <summary>
     /// Матчи, которые вроде как скорее всего закончились. Опрашиваем их через веб апи.
     /// Кто влияет: апдейтер кладёт матчи, апдейтер убирает (ресуректид), веб чекер берёт и убирает.
     /// </summary>
-    readonly List<TrackedMatch> deadMatches = new();
+    private readonly List<TrackedMatch> _deadMatches = new();
 
-    public MatchTracker(TargetsContainer targetsContainer, Databaser databaser, ILogger<MatchTracker> logger, IOptions<AppOptions> options)
+    public MatchTracker(TargetsContainer targetsContainer, Databaser databaser, ILogger<MatchTracker> logger,
+        IOptions<AppOptions> options)
     {
         this._targetsContainer = targetsContainer;
         this._databaser = databaser;
         this._logger = logger;
-        this.earlyAbandonTime = options.Value.EarlyAbandonTime;
+        this._earlyAbandonTime = options.Value.EarlyAbandonTime;
 
         _targetsContainer.TargetRemoved += UntrackAccount;
     }
@@ -57,29 +54,29 @@ public class MatchTracker
 
         // TODO можно убрать матчи, где больше нет отслеживаемых челов
         var games = unfinished
-        .Select(m => new TrackedMatch(m, m.Players?.All(p => p.HeroId != 0) == true))
-        .ToArray();
+            .Select(m => new TrackedMatch(m, m.Players?.All(p => p.HeroId != 0) == true))
+            .ToArray();
 
-        deadMatches.AddRange(games);
+        _deadMatches.AddRange(games);
     }
 
     public TrackedMatch[] GetDeadMatchesArray()
     {
-        lock (deadMatches)
+        lock (_deadMatches)
         {
-            return deadMatches.ToArray();
+            return _deadMatches.ToArray();
         }
     }
 
     /// <summary>
-    /// Матчи, в которых нет <see cref="MatchModel.TvInfo"/> или <see cref="TrackedMatch.gotAllHeroes"/> false
+    /// Матчи, в которых нет <see cref="MatchModel.TvInfo"/> или <see cref="TrackedMatch.GotAllHeroes"/> false
     /// </summary>
     /// <returns></returns>
     public TrackedMatch[] GetLiveMatchesForSourceTv()
     {
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            return liveMatches.Where(l => l.match.TvInfo == null || !l.gotAllHeroes).ToArray();
+            return _liveMatches.Where(l => l.Match.TvInfo == null || !l.GotAllHeroes).ToArray();
         }
     }
 
@@ -89,112 +86,112 @@ public class MatchTracker
     /// <returns></returns>
     public TrackedMatch? GetLastMatchByAccount(AccountModel account)
     {
-        lock (liveMatches)
+        lock (_liveMatches)
         {
             // Ласт, потому что новые матчи добавляются в конец.
             // Предположим, играют 2 таргета в 1 матче.
             // Один таргет ливает и идёт некст.
             // Старый матч останется лайв из-за таргета в нём. и оба матча будут содержать новую цель.
             // Но новый матч будет в конце списка.
-            return liveMatches.LastOrDefault(match => match.playing.Contains(account));
+            return _liveMatches.LastOrDefault(match => match.Playing.Contains(account));
         }
     }
 
     public TrackedMatch? FindLiveMatchByLobbyId(ulong id)
     {
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            return liveMatches.FirstOrDefault(m => m.match.WatchableGameId == id);
+            return _liveMatches.FirstOrDefault(m => m.Match.WatchableGameId == id);
         }
     }
 
     public TrackedMatch? FindDeadMatchByLobbyId(ulong id)
     {
-        lock (deadMatches)
+        lock (_deadMatches)
         {
-            return deadMatches.FirstOrDefault(m => m.match.WatchableGameId == id);
+            return _deadMatches.FirstOrDefault(m => m.Match.WatchableGameId == id);
         }
     }
 
     internal void ResurrectMatch(TrackedMatch tracked)
     {
-        _logger.LogInformation("Возрождаем матч {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
+        _logger.LogInformation("Возрождаем матч {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
 
-        lock (deadMatches)
+        lock (_deadMatches)
         {
-            if (!deadMatches.Remove(tracked))
+            if (!_deadMatches.Remove(tracked))
             {
                 // Уже убрали из мёртвых.
                 return;
             }
         }
 
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            liveMatches.Add(tracked);
+            _liveMatches.Add(tracked);
         }
     }
 
     internal async Task KillMatchAsync(TrackedMatch tracked)
     {
-        _logger.LogInformation("Убиваем матч {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
+        _logger.LogInformation("Убиваем матч {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
 
-        TimeSpan passed = DateTime.UtcNow - tracked.match.GameDate;
+        TimeSpan passed = DateTime.UtcNow - tracked.Match.GameDate;
 
-        if (passed > earlyAbandonTime)
+        if (passed > _earlyAbandonTime)
         {
-            lock (liveMatches)
+            lock (_liveMatches)
             {
-                liveMatches.Remove(tracked);
+                _liveMatches.Remove(tracked);
             }
 
-            lock (deadMatches)
+            lock (_deadMatches)
             {
-                deadMatches.Add(tracked);
+                _deadMatches.Add(tracked);
             }
         }
         else
         {
-            lock (liveMatches)
+            lock (_liveMatches)
             {
-                liveMatches.Remove(tracked);
+                _liveMatches.Remove(tracked);
             }
 
-            await _databaser.UpdateMatchAsync(tracked.match, () => tracked.match.MatchResult = MatchResult.EarlyLeave);
+            await _databaser.UpdateMatchAsync(tracked.Match, () => tracked.Match.MatchResult = MatchResult.EarlyLeave);
 
-            _logger.LogInformation("Ранний лив {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
+            _logger.LogInformation("Ранний лив {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
         }
     }
 
     internal void AddMatch(TrackedMatch tracked)
     {
-        _logger.LogInformation("Добавляем матчи {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
+        _logger.LogInformation("Добавляем матчи {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
 
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            liveMatches.Add(tracked);
+            _liveMatches.Add(tracked);
         }
     }
 
     internal void AddMatches(List<TrackedMatch> matchesToAdd)
     {
-        string text = string.Join("; ", matchesToAdd.Select(m => $"{m.match.Id} ({m.CreateNote()})").ToArray());
+        string text = string.Join("; ", matchesToAdd.Select(m => $"{m.Match.Id} ({m.CreateNote()})").ToArray());
 
         _logger.LogInformation("Добавляем матчи {text}", text);
 
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            liveMatches.AddRange(matchesToAdd);
+            _liveMatches.AddRange(matchesToAdd);
         }
     }
 
     internal void RemoveDeadMatch(TrackedMatch tracked)
     {
-        _logger.LogDebug("Убираем матч {matchId} ({note})", tracked.match.Id, tracked.CreateNote());
+        _logger.LogDebug("Убираем матч {matchId} ({note})", tracked.Match.Id, tracked.CreateNote());
 
-        lock (deadMatches)
+        lock (_deadMatches)
         {
-            deadMatches.Remove(tracked);
+            _deadMatches.Remove(tracked);
         }
     }
 
@@ -202,18 +199,18 @@ public class MatchTracker
     {
         List<TrackedMatch> toRemoveMatches = new();
 
-        lock (liveMatches)
+        lock (_liveMatches)
         {
-            var changed = liveMatches
-            .Where(l => l.playing.Contains(account))
-            .ToArray();
+            var changed = _liveMatches
+                .Where(l => l.Playing.Contains(account))
+                .ToArray();
 
             foreach (var ch in changed)
             {
-                ch.playing.Remove(account);
-                if (ch.playing.Count == 0)
+                ch.Playing.Remove(account);
+                if (ch.Playing.Count == 0)
                 {
-                    liveMatches.Remove(ch);
+                    _liveMatches.Remove(ch);
                     toRemoveMatches.Add(ch);
                 }
             }
@@ -221,10 +218,10 @@ public class MatchTracker
 
         // TODO Проверить, есть ли тут микро окно для создания второго матча при поиске.
 
-        lock (deadMatches)
+        lock (_deadMatches)
         {
             // Изначально я хотел следить, нужен ли этот матч вообще кому то, и удалять, если нет, но я устал.
-            deadMatches.AddRange(toRemoveMatches);
+            _deadMatches.AddRange(toRemoveMatches);
         }
     }
 }
