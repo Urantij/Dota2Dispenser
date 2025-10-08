@@ -99,6 +99,7 @@ public class InDotaConfirmer
 
             SteamID steamId = new SteamID(toCheckTarget.SteamID);
 
+            // TODO В ТЕОРИИ тут может быть несколько матчей, которые мы хотим найти. ы.
             SteamDota.DotaPlayerHistoryCallback history = await _steam.Dota.RequestMatchHistory(steamId.AccountID);
 
             CMsgDOTAGetPlayerMatchHistoryResponse.Match? historyMatch =
