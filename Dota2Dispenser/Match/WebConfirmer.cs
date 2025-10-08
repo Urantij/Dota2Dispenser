@@ -155,15 +155,19 @@ public class WebConfirmer
         catch (MatchNotFoundException)
         {
             _logger.LogWarning("Матч не найден {id} ({sourceId})", tracked.Match.Id, tracked.Match.TvInfo.MatchId);
+            tracked.LastWebCheckAttempt = DateTimeOffset.UtcNow;
             return;
         }
         catch (Exception e)
         {
             _logger.LogError(e, $"{nameof(CheckMatchAsync)} {nameof(_openDota.DoAsync)} Exception");
+            tracked.LastWebCheckAttempt = DateTimeOffset.UtcNow;
             return;
         }
 
+        // TODO здесь везде всратая гонка сос стояний, но как будто бы насрать? ну обновит он матч дважды, кому не похуй?
         _matchTracker.RemoveDeadMatch(tracked);
+        tracked.LastWebCheckAttempt = DateTimeOffset.UtcNow;
 
         await _databaser.UpdateMatchAsync(tracked.Match, () =>
         {

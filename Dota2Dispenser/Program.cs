@@ -65,6 +65,7 @@ public class Program
         builder.Services.AddSingleton<RpMovement>();
         builder.Services.AddSingleton<SourceTvMovement>();
         builder.Services.AddSingleton<SteamService>();
+        builder.Services.AddSingleton<InDotaConfirmer>();
 
         builder.Services.AddRouting(options =>
             options.ConstraintMap.Add("ulong", typeof(UlongRouteConstraint)));
@@ -95,6 +96,7 @@ public class Program
             logger.LogDebug("Дыбажим.");
         }
 
+        // не спрашивайте.
         app.Services.GetRequiredService<DotaApiService>();
         await app.Services.GetRequiredService<Databaser>().InitAsync();
         await app.Services.GetRequiredService<TargetsContainer>().InitAsync();
@@ -104,6 +106,7 @@ public class Program
         app.Services.GetRequiredService<RpMovement>().Init();
         app.Services.GetRequiredService<SourceTvMovement>().Init();
         app.Services.GetRequiredService<SteamService>().Init();
+        app.Services.GetRequiredService<InDotaConfirmer>().Init();
 
         AppDomain.CurrentDomain.ProcessExit += (sender, e) => { SqliteConnection.ClearAllPools(); };
         AppDomain.CurrentDomain.DomainUnload += (sender, e) => { SqliteConnection.ClearAllPools(); };

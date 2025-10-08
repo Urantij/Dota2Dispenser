@@ -23,6 +23,11 @@ public class SteamService
     private readonly TimeSpan _reconnectTime = TimeSpan.FromSeconds(10);
     private readonly bool _dontStart;
 
+    /// <summary>
+    /// Это клуб дружбы, тут мы храним наших друзей.
+    /// </summary>
+    private readonly List<SteamID> _club = [];
+
     private bool _isRunning = false;
 
     /// <summary>
@@ -111,6 +116,14 @@ public class SteamService
         Client.Disconnect();
     }
 
+    public bool IsFriend(SteamID steamId)
+    {
+        lock (_club)
+        {
+            return _club.Contains(steamId);
+        }
+    }
+
     private void TryConnect()
     {
         _logger.LogInformation("Стим клиент пытается подключиться...");
@@ -170,7 +183,13 @@ public class SteamService
 
     private void OnFriendsAdded(SteamFriends.FriendAddedCallback obj)
     {
+        // TODO разобраться как удаление друга приходит.
         _logger.LogInformation("Добавлен друг {name} ({id}) {result}", obj.PersonaName, obj.SteamID, obj.Result);
+
+        lock (_club)
+        {
+            _club.Add(obj.SteamID);
+        }
     }
 
     private void OnFriendsList(SteamFriends.FriendsListCallback obj)
@@ -180,6 +199,34 @@ public class SteamService
             _logger.LogInformation("Добавляем друга {id}...", friend.SteamID);
 
             _friends.AddFriend(friend.SteamID);
+        }
+
+        lock (_club)
+        {
+            // я делаю наугад, я не знаю, что тут происходит.
+            if (obj.Incremental)
+            {
+                foreach (var friend in obj.FriendList.Where(f => f.Relationship != EFriendRelationship.Friend))
+                {
+                    _club.Remove(friend.SteamID);
+                }
+
+                foreach (var friend in obj.FriendList.Where(f => f.Relationship == EFriendRelationship.Friend))
+                {
+                    if (_club.Contains(friend.SteamID))
+                        continue;
+
+                    _club.Add(friend.SteamID);
+                }
+            }
+            else
+            {
+                _club.Clear();
+
+                _club.AddRange(obj.FriendList
+                    .Where(f => f.Relationship == EFriendRelationship.Friend)
+                    .Select(f => f.SteamID));
+            }
         }
     }
 

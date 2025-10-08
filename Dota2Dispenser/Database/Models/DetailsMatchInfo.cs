@@ -8,6 +8,9 @@ namespace Dota2Dispenser.Database.Models;
 [Owned]
 public class DetailsMatchInfo
 {
+    /// <summary>
+    /// тру - редиант вин. фолс - даир вин. нулл - хуй знает.
+    /// </summary>
     public bool? RadiantWin { get; set; }
 
     public TimeSpan Duration { get; set; }

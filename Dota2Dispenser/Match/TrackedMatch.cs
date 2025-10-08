@@ -34,6 +34,19 @@ public class TrackedMatch
     /// </summary>
     public DateTimeOffset? DeathDate { get; set; }
 
+    // по хорошему это говно должны хранить сервисы. наверное?
+    // не уверен. но как будто бы да. просто хызы как это сделать нормально.
+
+    /// <summary>
+    /// Когда последний раз его трогал вебкомфирмер
+    /// </summary>
+    public DateTimeOffset? LastWebCheckAttempt { get; set; }
+
+    /// <summary>
+    /// Когда последний раз индота пытался его достать.
+    /// </summary>
+    public DateTimeOffset? LastInDotaCheckAttempt { get; set; }
+
     public TrackedMatch(MatchModel match, bool gotAllHeroes, DateTimeOffset? deathDate)
     {
         this.Match = match;
