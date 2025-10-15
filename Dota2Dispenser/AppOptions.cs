@@ -17,7 +17,7 @@ public class AppOptions
     /// </summary>
     public TimeSpan WebConfirmerDeathAddedTime { get; set; } = TimeSpan.FromSeconds(10);
 
-    public TimeSpan InDotaCheckCooldown { get; set; } = TimeSpan.FromSeconds(60);
+    public TimeSpan InDotaCheckCooldown { get; set; } = TimeSpan.FromSeconds(90);
 
     public TimeSpan TimeToConfirmBroken { get; set; } = TimeSpan.FromHours(2);
 
