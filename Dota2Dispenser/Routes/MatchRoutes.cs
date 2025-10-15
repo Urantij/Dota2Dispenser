@@ -19,6 +19,7 @@ public static class MatchRoutes
             ?.UtcDateTime;
         int? limit = httpContext.Request.Query.GetInt(Dota2DispenserParams.limitFilter);
         int? sinceId = httpContext.Request.Query.GetInt(Dota2DispenserParams.sinceIdFilter);
+        int? beforeId = httpContext.Request.Query.GetInt(Dota2DispenserParams.beforeIdFilter);
 
         var filterQuery = dbContext.Matches.AsQueryable();
 
@@ -45,6 +46,11 @@ public static class MatchRoutes
         if (sinceId != null)
         {
             filterQuery = filterQuery.Where(m => m.Id >= sinceId);
+        }
+
+        if (beforeId != null)
+        {
+            filterQuery = filterQuery.Where(m => m.Id < beforeId);
         }
 
         if (limit == null)
