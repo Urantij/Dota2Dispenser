@@ -88,6 +88,8 @@ public class InDotaConfirmer
         if (tracked.Match.TvInfo == null)
             return;
 
+        // кто то проебал 100к баллов из за этого)
+        bool scored;
         CMsgDOTAMatch? dotaMatch;
         try
         {
@@ -112,6 +114,9 @@ public class InDotaConfirmer
                 return;
             }
 
+            // если виннера нет (нулл), то просто виннер вернёт фолс. хызы зач так делать.
+            scored = historyMatch.ShouldSerializewinner();
+
             SteamDota.MatchDetailsCallback response = await _steam.Dota.RequestMatchDetails(historyMatch.match_id);
 
             dotaMatch = response.Response.match;
@@ -129,12 +134,15 @@ public class InDotaConfirmer
 
         await _databaser.UpdateMatchAsync(tracked.Match, () =>
         {
-            bool? radiantWin = dotaMatch.match_outcome switch
-            {
-                EMatchOutcome.k_EMatchOutcome_RadVictory => true,
-                EMatchOutcome.k_EMatchOutcome_DireVictory => false,
-                _ => null
-            };
+            // проклятая конструкция немного
+            bool? radiantWin = scored
+                ? dotaMatch.match_outcome switch
+                {
+                    EMatchOutcome.k_EMatchOutcome_RadVictory => true,
+                    EMatchOutcome.k_EMatchOutcome_DireVictory => false,
+                    _ => null
+                }
+                : null;
 
             tracked.Match.GameDate = DateTimeOffset.FromUnixTimeSeconds(dotaMatch.starttime).UtcDateTime;
             tracked.Match.MatchResult = MatchResult.Finished;
