@@ -97,7 +97,15 @@ public class SteamService
             while (_isRunning && thatObject == _sessionObject && !_lifetime.ApplicationStopping.IsCancellationRequested)
             {
                 // in order for the callbacks to get routed, they need to be handled by the manager
-                await _callbackManager.RunWaitCallbackAsync(_lifetime.ApplicationStopping);
+                // иногда по каким то причинам колбеки просто дохнут. сурс стимкита нюхать мне впадлу, я просто понадеюсь, что причина где то тут
+                try
+                {
+                    await _callbackManager.RunWaitCallbackAsync(_lifetime.ApplicationStopping);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogWarning(e, "Колбеки реально ломаются");
+                }
             }
         });
     }
